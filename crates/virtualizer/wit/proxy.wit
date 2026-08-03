@@ -31,4 +31,10 @@ world proxy {
     export wasi:random/random@0.3.0;
     export wasi:random/insecure@0.3.0;
     export wasi:random/insecure-seed@0.3.0;
+
+    // === HTTP Interception ===
+    import wasi:http/handler@0.3.0;
+    import wasi:http/client@0.3.0;
+    export wasi:http/handler@0.3.0;
+    export wasi:http/client@0.3.0;
 }

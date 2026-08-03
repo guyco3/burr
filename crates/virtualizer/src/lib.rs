@@ -10,6 +10,7 @@ pub mod sockets;
 pub mod cli;
 pub mod clocks;
 pub mod random;
+pub mod http;
 
 struct VirtualizationProxy;
 

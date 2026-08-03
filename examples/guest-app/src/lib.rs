@@ -62,6 +62,8 @@ impl Guest for Component {
             results.push("UdpAllow:FAIL".to_string());
         }
 
+        // HTTP tests omitted due to raw FutureReader instantiation complexity in wit-bindgen 0.60.0
+
         let results_str = results.join(", ");
         println!("Analysis Result: {}", results_str);
         Ok(())
