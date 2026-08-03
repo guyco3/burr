@@ -17,8 +17,11 @@ run_test() {
     
     cd "$dir"
     
+    # Copy guest to local directory
+    cp "$GUEST_WASM_PATH" guest.wasm
+    
     # Run installation
-    wrdn install "file://$GUEST_WASM_PATH"
+    wrdn install "file://$(pwd)/guest.wasm"
     
     # Run guest
     set +e

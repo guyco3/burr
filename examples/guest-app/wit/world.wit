@@ -27,6 +27,7 @@ world telemetry-world {
     import wasi:filesystem/types@0.3.0;
     import wasi:sockets/ip-name-lookup@0.3.0;
     import wasi:sockets/types@0.3.0;
+    import wasi:http/client@0.3.0;
     
     export wasi:cli/run@0.3.0;
 }
