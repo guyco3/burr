@@ -3,4 +3,7 @@ members = [
     "crates/virtualizer",
     "crates/cli"
 ]
+exclude = [
+    "examples/guest-app"
+]
 resolver = "2"

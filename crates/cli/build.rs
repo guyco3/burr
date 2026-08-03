@@ -12,12 +12,14 @@ fn main() {
 
     println!("cargo:rerun-if-changed={}", virtualizer_dir.display());
 
+    let target_dir = out_dir.clone() + "/virt_target";
     let status = Command::new("cargo")
         .args(&[
             "build",
             "--target=wasm32-wasip2",
             "--release",
         ])
+        .env("CARGO_TARGET_DIR", &target_dir)
         .current_dir(&virtualizer_dir)
         .status()
         .expect("Failed to build virtualizer crate");
@@ -26,8 +28,7 @@ fn main() {
         panic!("Failed to build virtualizer crate");
     }
 
-    let target_dir = virtualizer_dir.join("target").join("wasm32-wasip2").join("release");
-    let wasm_file = target_dir.join("virtualizer.wasm");
+    let wasm_file = PathBuf::from(&target_dir).join("wasm32-wasip2").join("release").join("virtualizer.wasm");
 
     let dest_path = PathBuf::from(&out_dir).join("virtualizer.wasm");
     fs::copy(&wasm_file, &dest_path).expect("Failed to copy virtualizer.wasm to OUT_DIR");

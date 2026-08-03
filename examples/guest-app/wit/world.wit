@@ -1,0 +1,32 @@
+package local:telemetry-demo@0.1.0;
+
+interface processor {
+    // A structured data payload
+    record sensor-reading {
+        sensor-id: string,
+        value: f64,
+        timestamp: u64,
+    }
+
+    // A structured error definition
+    variant processing-error {
+        corrupted-data(string),
+        sensor-offline,
+        limit-exceeded,
+    }
+
+    // Streams a batch of readings, returns a future containing a Result
+    analyze-batch: async func(
+        readings: stream<sensor-reading>
+    ) -> result<string, processing-error>;
+}
+
+world telemetry-world {
+    import wasi:cli/environment@0.3.0;
+    import wasi:filesystem/preopens@0.3.0;
+    import wasi:filesystem/types@0.3.0;
+    import wasi:sockets/ip-name-lookup@0.3.0;
+    import wasi:sockets/types@0.3.0;
+    
+    export wasi:cli/run@0.3.0;
+}
