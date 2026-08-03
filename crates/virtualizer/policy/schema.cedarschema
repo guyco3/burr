@@ -1,0 +1,55 @@
+namespace Warden {
+    entity Module;
+    
+    entity Resource;
+    
+    action fs_read appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            path: String
+        }
+    };
+    
+    action fs_write appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            path: String
+        }
+    };
+    
+    action http_request appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            url: String,
+            method: String
+        }
+    };
+    
+    action env_read appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            key: String
+        }
+    };
+    
+    action socket_connect appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            ip: String,
+            port: Long
+        }
+    };
+    
+    action dns_lookup appliesTo {
+        principal: Module,
+        resource: Resource,
+        context: {
+            hostname: String
+        }
+    };
+}
