@@ -23,6 +23,10 @@ run_test() {
     # Run installation
     wrdn install "file://$(pwd)/guest.wasm"
     
+    # Provide the necessary environment/files for the ALLOW checks to succeed at host level
+    export VIRTUAL=1
+    touch allowed.txt
+
     # Run guest
     set +e
     node --experimental-wasm-jspi index.js > output.log 2>&1

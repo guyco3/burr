@@ -41,7 +41,8 @@ impl Guest for Component {
 
         // 4. TCP
         if let Ok(tcp1) = crate::wasi::sockets::types::TcpSocket::create(IpAddressFamily::Ipv4) {
-            let tcp_allow = tcp1.connect(IpSocketAddress::Ipv4(Ipv4SocketAddress { port: 9998, address: (127,0,0,1) })).await;
+            // 1.1.1.1:53 is a reliable public endpoint that accepts TCP connections
+            let tcp_allow = tcp1.connect(IpSocketAddress::Ipv4(Ipv4SocketAddress { port: 53, address: (1,1,1,1) })).await;
             results.push(format!("TcpAllow:{}", if tcp_allow.is_ok() { "PASS" } else { "FAIL" }));
         } else {
             results.push("TcpAllow:FAIL".to_string());

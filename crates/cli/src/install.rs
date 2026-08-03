@@ -29,44 +29,62 @@ const ipLookup = warden['wasi:sockets/ip-name-lookup@0.3.0'];
 export const resolveAddresses = ipLookup?.resolveAddresses;
 "#;
 
-pub async fn run_install(oci_ref: &str) -> Result<()> {
-    let pkg_name;
-    let guest_wasm_path;
-    let pkg_dir;
-    
+#[derive(Debug, PartialEq)]
+pub enum ParsedReference {
+    Local(PathBuf, String),
+    Oci(Reference, String),
+}
+
+pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
     if let Some(local_path) = oci_ref.strip_prefix("file://") {
-        pkg_name = Path::new(local_path).file_stem().unwrap().to_str().unwrap().to_string();
-        let wrdn_dir = PathBuf::from(".wrdn");
-        pkg_dir = wrdn_dir.join(&pkg_name);
-        fs::create_dir_all(&pkg_dir).context("Failed to create .wrdn pkg directory")?;
-        
-        guest_wasm_path = pkg_dir.join("guest.wasm");
-        fs::copy(local_path, &guest_wasm_path).context("Failed to copy local guest wasm")?;
-        println!("Using local guest wasm from {}...", local_path);
+        let path = Path::new(local_path);
+        let pkg_name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+        Ok(ParsedReference::Local(PathBuf::from(local_path), pkg_name))
     } else {
         let reference: Reference = oci_ref.parse().context("Invalid OCI reference")?;
-        pkg_name = reference.repository().replace("/", "_");
-        
-        let wrdn_dir = PathBuf::from(".wrdn");
-        pkg_dir = wrdn_dir.join(&pkg_name);
-        fs::create_dir_all(&pkg_dir).context("Failed to create .wrdn pkg directory")?;
+        let pkg_name = reference.repository().replace("/", "_");
+        Ok(ParsedReference::Oci(reference, pkg_name))
+    }
+}
 
-        println!("Pulling guest wasm from {}...", oci_ref);
-        let mut client = Client::new(oci_client::client::ClientConfig::default());
-        let image_data = client
-            .pull(
-                &reference,
-                &oci_client::secrets::RegistryAuth::Anonymous,
-                vec!["application/vnd.wasm.component.v1+wasm", "application/vnd.oci.image.layer.v1.tar+gzip", "application/wasm"],
-            )
-            .await
-            .context("Failed to pull OCI artifact")?;
+pub async fn run_install(oci_ref: &str) -> Result<()> {
+    let parsed = parse_reference(oci_ref)?;
+    let pkg_name = match &parsed {
+        ParsedReference::Local(_, name) => name,
+        ParsedReference::Oci(_, name) => name,
+    };
+    
+    let wrdn_dir = PathBuf::from(".wrdn");
+    let pkg_dir = wrdn_dir.join(pkg_name);
+    fs::create_dir_all(&pkg_dir).context("Failed to create .wrdn pkg directory")?;
+    let guest_wasm_path = pkg_dir.join("guest.wasm");
 
-        guest_wasm_path = pkg_dir.join("guest.wasm");
-        if let Some(layer) = image_data.layers.first() {
-            fs::write(&guest_wasm_path, &layer.data).context("Failed to write guest wasm")?;
-        } else {
-            anyhow::bail!("No layers found in the OCI artifact");
+    match parsed {
+        ParsedReference::Local(local_path, _) => {
+            fs::copy(&local_path, &guest_wasm_path).context("Failed to copy local guest wasm")?;
+            println!("Using local guest wasm from {}...", local_path.display());
+        }
+        ParsedReference::Oci(reference, _) => {
+            println!("Pulling guest wasm from {}...", oci_ref);
+            let mut client = Client::new(oci_client::client::ClientConfig::default());
+            let image_data = client
+                .pull(
+                    &reference,
+                    &oci_client::secrets::RegistryAuth::Anonymous,
+                    vec!["application/vnd.wasm.component.v1+wasm", "application/vnd.oci.image.layer.v1.tar+gzip", "application/wasm"],
+                )
+                .await
+                .context("Failed to pull OCI artifact")?;
+
+            if let Some(layer) = image_data.layers.first() {
+                fs::write(&guest_wasm_path, &layer.data).context("Failed to write guest wasm")?;
+            } else {
+                anyhow::bail!("No layers found in the OCI artifact");
+            }
         }
     }
 
@@ -122,4 +140,30 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     println!("To run, use 'node --experimental-wasm-jspi ...'");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_parse_local_reference() {
+        let parsed = parse_reference("file:///tmp/guest.wasm").unwrap();
+        assert_eq!(
+            parsed,
+            ParsedReference::Local(PathBuf::from("/tmp/guest.wasm"), "guest".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_oci_reference() {
+        let parsed = parse_reference("ghcr.io/guyco3/guest:latest").unwrap();
+        if let ParsedReference::Oci(reference, pkg_name) = parsed {
+            assert_eq!(reference.repository(), "guyco3/guest");
+            assert_eq!(pkg_name, "guyco3_guest");
+        } else {
+            panic!("Expected ParsedReference::Oci");
+        }
+    }
 }

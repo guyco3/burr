@@ -17,6 +17,30 @@ fn test_cli_builds_and_installs_locally() {
     
     assert!(status.success(), "CLI build failed");
 
-    // We can also test the local install logic with a dummy file if needed,
-    // but the bash script run_e2e_tests.sh covers the full E2E flow.
+    // Test local install logic
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let dummy_wasm_path = temp_dir.path().join("dummy.wasm");
+    // A valid minimal WebAssembly Component (version 1)
+    fs::write(&dummy_wasm_path, b"\x00asm\x0d\x00\x01\x00").expect("Failed to write dummy wasm");
+
+    let bin_path = env!("CARGO_BIN_EXE_wrdn");
+    let status = Command::new(bin_path)
+        .args(&["install", &format!("file://{}", dummy_wasm_path.display())])
+        .current_dir(temp_dir.path())
+        .status()
+        .expect("Failed to run wrdn install");
+    
+    // Ensure the CLI exited successfully
+    assert!(status.success(), "CLI install failed");
+
+    // Verify expected output artifacts
+    let wrdn_dir = temp_dir.path().join(".wrdn/dummy");
+    assert!(wrdn_dir.exists(), ".wrdn directory was not created");
+    assert!(wrdn_dir.join("guest.wasm").exists(), "guest.wasm missing");
+    assert!(wrdn_dir.join("virtualizer.wasm").exists(), "virtualizer.wasm missing");
+    assert!(wrdn_dir.join("warden_shim.js").exists(), "warden_shim.js missing");
+    assert!(wrdn_dir.join("policy.cedar").exists(), "policy.cedar missing");
+    
+    // Note: The jco transpilation might fail if it tries to parse the dummy wasm as a valid component,
+    // but our main goal is to test the filesystem interactions and CLI orchestration.
 }
