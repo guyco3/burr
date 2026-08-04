@@ -4,13 +4,13 @@ wit_bindgen::generate!({
     generate_all
 });
 
-use exports::wasi::cli::run::Guest;
+use exports::local::telemetry_demo::telemetry::Guest;
 use crate::wasi::sockets::types::{IpAddressFamily, IpSocketAddress, Ipv4SocketAddress};
 
 struct Component;
 
 impl Guest for Component {
-    async fn run() -> Result<(), ()> {
+    async fn run_demo() {
         let mut results = vec![];
 
         // 1. Environment
@@ -67,7 +67,6 @@ impl Guest for Component {
 
         let results_str = results.join(", ");
         println!("Analysis Result: {}", results_str);
-        Ok(())
     }
 }
 

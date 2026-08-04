@@ -21,6 +21,10 @@ interface processor {
     ) -> result<string, processing-error>;
 }
 
+interface telemetry {
+    run-demo: async func();
+}
+
 world telemetry-world {
     import wasi:cli/environment@0.3.0;
     import wasi:filesystem/preopens@0.3.0;
@@ -29,5 +33,5 @@ world telemetry-world {
     import wasi:sockets/types@0.3.0;
     import wasi:http/client@0.3.0;
     
-    export wasi:cli/run@0.3.0;
+    export telemetry;
 }

@@ -1,9 +1,9 @@
-import { run } from './.wrdn/guest/index.js';
+import { telemetry } from './.wrdn/guest/index.js';
 
 async function runDemo() {
     console.log("--- Running Telemetry Demo ---");
     try {
-        await run.run();
+        await telemetry.runDemo();
         console.log(`Success`);
     } catch (e) {
         if (e && e.tag) {
