@@ -54,12 +54,12 @@ pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
 pub async fn run_install(oci_ref: &str) -> Result<()> {
     let parsed = parse_reference(oci_ref)?;
     let pkg_name = match &parsed {
-        ParsedReference::Local(_, name) => name,
-        ParsedReference::Oci(_, name) => name,
+        ParsedReference::Local(_, pkg) => pkg.clone(),
+        ParsedReference::Oci(_, pkg) => pkg.clone(),
     };
     
     let wrdn_dir = PathBuf::from(".wrdn");
-    let pkg_dir = wrdn_dir.join(pkg_name);
+    let pkg_dir = wrdn_dir.join(&pkg_name);
     fs::create_dir_all(&pkg_dir).context("Failed to create .wrdn pkg directory")?;
     let guest_wasm_path = pkg_dir.join("guest.wasm");
 
@@ -136,9 +136,21 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
 
     policy::ensure_policy_exists(&pkg_dir)?;
 
-    println!("Installation complete for {}.", oci_ref);
-    println!("To run, use 'node --experimental-wasm-jspi ...'");
+    println!("Generating Node.js entrypoint...");
+    let index_js_path = pkg_dir.join("index.js");
+    let index_js_content = r#"import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+process.env.WRDN_POLICY_PATH = path.join(__dirname, 'policy.cedar');
+
+export * from './out-guest/guest.js';
+"#;
+    fs::write(&index_js_path, index_js_content).context("Failed to write index.js entrypoint")?;
+
+    println!("Installation complete for {}.", oci_ref);
+    println!("To use this package, import from '.wrdn/{}/index.js'", pkg_name);
+    
     Ok(())
 }
 

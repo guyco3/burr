@@ -27,7 +27,7 @@ jobs:
 
       - name: Build Dummy Guest Component
         run: |
-          cd examples/guest-app
+          cd examples/guests/telemetry-demo
           cargo build --target wasm32-wasip2 --release
 
       - name: Setup ORAS
@@ -49,7 +49,7 @@ jobs:
           IMAGE="ghcr.io/${LOWER_OWNER}/wrdn-test-guest:latest"
           
           oras push $IMAGE \
-            examples/guest-app/target/wasm32-wasip2/release/telemetry_demo.wasm:application/vnd.wasm.component.v1+wasm
+            target/wasm32-wasip2/release/telemetry_demo.wasm:application/vnd.wasm.component.v1+wasm
 
       - name: Build wrdn CLI
         run: cargo build --release -p wrdn

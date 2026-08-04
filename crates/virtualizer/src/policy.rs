@@ -32,8 +32,10 @@ impl PolicyEngine {
         let schema_str = include_str!("../policy/schema.cedarschema");
         let (schema, _) = Schema::from_cedarschema_str(schema_str).expect("Failed to parse schema");
         
-        let policy_path = "/tmp/policy.cedar";
-        let policy_str = std::fs::read_to_string(policy_path)
+        let policy_path = std::env::var("WRDN_POLICY_PATH")
+            .unwrap_or_else(|_| "./policy.cedar".to_string());
+        
+        let policy_str = std::fs::read_to_string(&policy_path)
             .unwrap_or_else(|e| {
                 println!("WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.", policy_path, e);
                 String::new() // Empty policy = deny all

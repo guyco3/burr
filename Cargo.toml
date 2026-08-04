@@ -1,9 +1,9 @@
 [workspace]
 members = [
+    "crates/cli",
     "crates/virtualizer",
-    "crates/cli"
+    "examples/guests/telemetry-demo",
+    "examples/guests/data-processor"
 ]
-exclude = [
-    "examples/guest-app"
-]
+
 resolver = "2"

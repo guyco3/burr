@@ -1,0 +1,13 @@
+package local:demo@0.1.0;
+
+interface processor {
+    process-data: func(input: string) -> string;
+}
+
+world data-processor {
+    import wasi:cli/environment@0.3.0;
+    import wasi:filesystem/preopens@0.3.0;
+    import wasi:filesystem/types@0.3.0;
+    
+    export processor;
+}

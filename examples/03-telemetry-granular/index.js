@@ -1,4 +1,4 @@
-import { run } from './.wrdn/telemetry_demo/out-guest/guest.js';
+import { run } from './.wrdn/guest/index.js';
 
 async function runDemo() {
     console.log("--- Running Telemetry Demo ---");

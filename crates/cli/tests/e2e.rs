@@ -40,6 +40,7 @@ fn test_cli_builds_and_installs_locally() {
     assert!(wrdn_dir.join("virtualizer.wasm").exists(), "virtualizer.wasm missing");
     assert!(wrdn_dir.join("warden_shim.js").exists(), "warden_shim.js missing");
     assert!(wrdn_dir.join("policy.cedar").exists(), "policy.cedar missing");
+    assert!(wrdn_dir.join("index.js").exists(), "index.js missing");
     
     // Note: The jco transpilation might fail if it tries to parse the dummy wasm as a valid component,
     // but our main goal is to test the filesystem interactions and CLI orchestration.

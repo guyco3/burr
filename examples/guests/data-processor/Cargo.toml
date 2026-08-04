@@ -1,0 +1,11 @@
+[package]
+name = "data-processor"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.60.0"
+wasi = "0.13.1"
