@@ -64,12 +64,32 @@ await telemetry.runDemo();
 
 The generated `policy.cedar` is intentionally strict. The default behavior is to **Deny All** (`forbid`). You must manually edit this policy to grant specific capabilities to the guest module.
 
-### Action Types
-The `wrdn` policy engine intercepts WASI 0.3 capabilities mapped to the following Cedar actions:
-- `Action::"env_read"`: Reading environment variables.
-- `Action::"fs_read"`: Reading from the filesystem.
-- `Action::"fs_write"`: Writing to the filesystem.
-- `Action::"net_connect"`: Opening network connections (TCP/UDP).
+### Action Types and Context
+The `wrdn` policy engine intercepts WASI 0.3 capabilities mapped to the following Cedar actions. Each action provides specific context variables you can use in your policy rules (`when { context.<property> == ... }`):
+
+- **Environment & CLI**
+  - `Action::"env_read"`: Reading an environment variable. Context: `context.key` (String).
+  - `Action::"cli_exit"`: Exiting the process.
+  - `Action::"cli_read_environment"`: Accessing the entire environment block.
+  - `Action::"cli_read_arguments"`: Accessing the command-line arguments.
+  - `Action::"cli_read_initial_cwd"`: Reading the starting directory.
+
+- **Filesystem**
+  - `Action::"fs_read"`: Opening/reading a file or directory. Context: `context.path` (String).
+  - `Action::"fs_write"`: Modifying or creating a file or directory. Context: `context.path` (String).
+
+- **Networking & Sockets**
+  - `Action::"dns_lookup"`: Resolving a domain name. Context: `context.hostname` (String).
+  - `Action::"socket_connect"`: Opening a TCP or UDP socket connection. Context: `context.ip` (String), `context.port` (Long).
+  
+- **HTTP**
+  - `Action::"http_outgoing_request"`: Making an outbound HTTP request. Context: `context.url` (String), `context.method` (String).
+  - `Action::"http_incoming_request"`: Receiving an HTTP request. Context: `context.url` (String), `context.method` (String).
+
+- **System Resources**
+  - `Action::"clock_read_monotonic"`: Reading the monotonic clock.
+  - `Action::"clock_read_system"`: Reading the system wall-clock.
+  - `Action::"random_read"`: Generating random numbers or seed material.
 
 ### Example Policy
 To allow the component to read only the `APP_ENV` environment variable, but forbid reading `SECRET_KEY`, you can write:
