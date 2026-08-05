@@ -95,7 +95,7 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     println!("Transpiling virtualizer...");
     let status = Command::new("npx")
         .args(&[
-            "-p", "@bytecodealliance/jco@1.26.1",
+            "-p", "@bytecodealliance/jco@1.27.0",
             "jco", "transpile",
             virtualizer_path.to_str().unwrap(),
             "-o", pkg_dir.join("out-warden").to_str().unwrap(),
@@ -116,7 +116,7 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let shim_rel_path = "../warden_shim.js";
     let status = Command::new("npx")
         .args(&[
-            "-p", "@bytecodealliance/jco@1.26.1",
+            "-p", "@bytecodealliance/jco@1.27.0",
             "jco", "transpile",
             guest_wasm_path.to_str().unwrap(),
             "-o", pkg_dir.join("out-guest").to_str().unwrap(),
