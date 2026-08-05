@@ -41,3 +41,11 @@ There are no WASI 0.2 polyfills running under the hood. The build steps use the 
 > *"WASI 0.3 toolchain note. Rust’s wasm32-wasip3 target is currently Tier 3 with no prebuilt artifacts; building for it requires constructing the standard library from source. The 0.3 example on this page therefore uses the library/reactor pattern targeting wasm32-wasip2, where wit-bindgen’s async feature handles the 0.3 binding generation. There is no Rust-idiomatic 0.3 path for the fn main() command-component pattern yet."*
 > 
 > — [Creating Runnable Components in Rust](https://component-model.bytecodealliance.org/language-support/creating-runnable-components/rust.html)
+
+## Security and Policy Engine
+The Virtualizer operates on a default-deny architecture powered by [Cedar Policy](https://www.cedarpolicy.com/). 
+
+### Dependency Injection
+To ensure maximum reliability, the `PolicyEngine` (located in `crates/virtualizer/src/policy.rs`) is decoupled from the runtime environment.
+- **Production (`PolicyEngine::from_env`)**: At runtime, the CLI extracts the guest package name and loads the corresponding `policy.cedar` file from the `.wrdn/` directory.
+- **Testing (`PolicyEngine::new`)**: The engine is instantiated entirely in-memory by injecting the schema string and mock policy strings directly. This permits high-speed unit testing of the exact context mappings (e.g., verifying that a specific IP address correctly fails authorization) without any filesystem I/O or brittle test setups.
