@@ -1,5 +1,7 @@
 # wrdn
 
+> ⚠️ **Pre-Release Notice**: `wrdn` is currently in early alpha. The WebAssembly Component Model and its surrounding ecosystem are evolving rapidly. Expect breaking changes in future releases as the WASM specifications mature.
+
 `wrdn` is a security tool for Node.js and Deno that allows you to safely run third-party WebAssembly (WASM) components. 
 
 By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `wrdn` wraps untrusted third-party WASM modules in a secure "Virtualizer". This Virtualizer intercepts all system capability requests (like reading files, environment variables, or making network connections) and validates them against a customizable policy engine at runtime.
