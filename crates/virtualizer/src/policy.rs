@@ -25,12 +25,28 @@ pub struct PolicyEngine {
     authorizer: Authorizer,
     policies: PolicySet,
     schema: Schema,
+    principal_id: String,
 }
 
 impl PolicyEngine {
-    pub fn new() -> Self {
-        let schema_str = include_str!("../policy/schema.cedarschema");
+    pub fn new(policy_str: &str, schema_str: &str, principal_id: String) -> Self {
         let (schema, _) = Schema::from_cedarschema_str(schema_str).expect("Failed to parse schema");
+        
+        let policies = PolicySet::from_str(policy_str).unwrap_or_else(|e| {
+            eprintln!("WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.", e);
+            PolicySet::new()
+        });
+        
+        Self {
+            authorizer: Authorizer::new(),
+            policies,
+            schema,
+            principal_id,
+        }
+    }
+
+    pub fn from_env() -> Self {
+        let schema_str = include_str!("../policy/schema.cedarschema");
         
         let policy_path = std::env::var("WRDN_POLICY_PATH")
             .unwrap_or_else(|_| "./policy.cedar".to_string());
@@ -41,23 +57,14 @@ impl PolicyEngine {
                 String::new() // Empty policy = deny all
             });
             
-        let policies = PolicySet::from_str(&policy_str).unwrap_or_else(|e| {
-            eprintln!("WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.", e);
-            PolicySet::new()
-        });
-        
-        Self {
-            authorizer: Authorizer::new(),
-            policies,
-            schema,
-        }
+        // Hardcoded for now since the virtualizer is currently a single-tenant host.
+        Self::new(&policy_str, schema_str, "telemetry-demo".to_string())
     }
 
     pub fn authorize(&self, action_req: &Action) -> Result<(), ()> {
-        let principal_id = "telemetry-demo";
         let principal = EntityUid::from_type_name_and_id(
             EntityTypeName::from_str("Warden::Module").unwrap(),
-            EntityId::from_str(principal_id).unwrap(),
+            EntityId::from_str(&self.principal_id).unwrap(),
         );
 
         let (action_str, resource_str, mut ctx_map) = match action_req {
@@ -123,7 +130,7 @@ impl PolicyEngine {
         let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
         let log = format!(
             r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "decision": "{}"}}"#,
-            timestamp, principal_id, action_str, resource_str, decision_str
+            timestamp, self.principal_id, action_str, resource_str, decision_str
         );
         println!("[WARDEN AUDIT] {}", log);
         
@@ -137,5 +144,80 @@ impl PolicyEngine {
 pub static POLICY_ENGINE: std::sync::OnceLock<PolicyEngine> = std::sync::OnceLock::new();
 
 pub fn get_engine() -> &'static PolicyEngine {
-    POLICY_ENGINE.get_or_init(|| PolicyEngine::new())
+    POLICY_ENGINE.get_or_init(|| PolicyEngine::from_env())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SCHEMA: &str = include_str!("../policy/schema.cedarschema");
+    const PRINCIPAL: &str = "telemetry-demo";
+
+    fn setup_engine(policy_str: &str) -> PolicyEngine {
+        PolicyEngine::new(policy_str, SCHEMA, PRINCIPAL.to_string())
+    }
+
+    #[test]
+    fn test_default_deny() {
+        let engine = setup_engine(""); // Empty policy
+        assert!(engine.authorize(&Action::FsRead("/etc/passwd".to_string())).is_err());
+        assert!(engine.authorize(&Action::EnvRead("SECRET_KEY".to_string())).is_err());
+        assert!(engine.authorize(&Action::SocketConnect { ip: "1.2.3.4".to_string(), port: 80 }).is_err());
+    }
+
+    #[test]
+    fn test_env_read_allow() {
+        let policy = r#"
+            permit(
+                principal == Warden::Module::"telemetry-demo",
+                action == Warden::Action::"env_read",
+                resource == Warden::Resource::"environment"
+            ) when {
+                context.key == "APP_ENV"
+            };
+        "#;
+        let engine = setup_engine(policy);
+        
+        // Allowed by policy
+        assert!(engine.authorize(&Action::EnvRead("APP_ENV".to_string())).is_ok());
+        // Blocked (default deny)
+        assert!(engine.authorize(&Action::EnvRead("SECRET_KEY".to_string())).is_err());
+    }
+
+    #[test]
+    fn test_network_connect() {
+        let policy = r#"
+            permit(
+                principal == Warden::Module::"telemetry-demo",
+                action == Warden::Action::"socket_connect",
+                resource == Warden::Resource::"network"
+            ) when {
+                context.ip == "93.184.216.34" &&
+                context.port == 443
+            };
+        "#;
+        let engine = setup_engine(policy);
+        
+        // Exact match
+        assert!(engine.authorize(&Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 443 }).is_ok());
+        
+        // Wrong port
+        assert!(engine.authorize(&Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 80 }).is_err());
+        
+        // Wrong IP
+        assert!(engine.authorize(&Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 443 }).is_err());
+    }
+
+    #[test]
+    fn test_benign_actions() {
+        let engine = setup_engine(""); // Empty policy
+        
+        // These should be allowed by the fallback MVP rules even with no policy
+        assert!(engine.authorize(&Action::RandomRead).is_ok());
+        assert!(engine.authorize(&Action::ClockReadSystem).is_ok());
+        assert!(engine.authorize(&Action::ClockReadMonotonic).is_ok());
+        assert!(engine.authorize(&Action::CliExit).is_ok());
+    }
+}
+

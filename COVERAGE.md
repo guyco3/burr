@@ -9,9 +9,8 @@ Based on a manual review of the test modules during the last `cargo test --all` 
   - Contains **1** E2E test (`test_cli_builds_and_installs_locally`) verifying the CLI build and installation flow.
 
 - **`virtualizer` Crate**:
-  - Currently contains **0** unit tests. 
-
-*Recommendation:* The `virtualizer` crate should be a primary target for future unit testing to ensure the cedar policy mappings for capability restrictions function correctly before reaching the end-to-end integration tests.
+  - Contains **4** unit tests covering the `PolicyEngine` evaluation logic (`test_default_deny`, `test_env_read_allow`, `test_env_read_deny`, `test_network_connect`, `test_benign_actions`).
+  - The `PolicyEngine` has been successfully decoupled from environment variables to allow pure, in-memory dependency injection of Cedar policies during testing.
 
 ## Running Tests
 To run the full suite:
