@@ -17,9 +17,6 @@ pub enum Action {
     CliReadEnvironment,
     CliReadArguments,
     CliReadInitialCwd,
-    ClockReadMonotonic,
-    ClockReadSystem,
-    RandomRead,
 }
 
 pub struct PolicyEngine {
@@ -34,10 +31,11 @@ impl PolicyEngine {
         let (schema, _) = Schema::from_cedarschema_str(schema_str).expect("Failed to parse schema");
         
         let policies = PolicySet::from_str(policy_str).unwrap_or_else(|e| {
-            eprintln!("WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.", e);
+            log::warn!("WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.", e);
             PolicySet::new()
         });
         
+        env_logger::try_init().ok();
         Self {
             authorizer: Authorizer::new(),
             policies,
@@ -54,7 +52,7 @@ impl PolicyEngine {
         
         let policy_str = std::fs::read_to_string(&policy_path)
             .unwrap_or_else(|e| {
-                println!("WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.", policy_path, e);
+                log::info!("WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.", policy_path, e);
                 String::new() // Empty policy = deny all
             });
             
@@ -103,7 +101,7 @@ impl PolicyEngine {
             },
             // Fallback: allow all benign actions that don't have strict Cedar policies in this MVP
             Action::CliExit | Action::CliReadEnvironment | Action::CliReadArguments | 
-            Action::CliReadInitialCwd | Action::ClockReadMonotonic | Action::ClockReadSystem | Action::RandomRead => {
+            Action::CliReadInitialCwd => {
                 return Ok(());
             }
         };
@@ -133,7 +131,7 @@ impl PolicyEngine {
             r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "decision": "{}"}}"#,
             timestamp, self.principal_id, action_str, resource_str, decision_str
         );
-        println!("[WARDEN AUDIT] {}", log);
+        log::info!("[WARDEN AUDIT] {}", log);
         
         match answer.decision() {
             Decision::Allow => Ok(()),
@@ -229,7 +227,7 @@ mod tests {
         // Testing that the interceptor executes the closure if requirements are benign
         let result2 = authorize_and_execute_with_engine::<&str, &str, _, _>(
             &engine, 
-            &[Action::RandomRead], 
+            &[Action::CliExit], 
             || "CustomError", 
             || "Success"
         );
@@ -296,7 +294,7 @@ mod tests {
         
         let success = authorize_and_execute_with_engine::<(), (), _, _>(
             &engine, 
-            &[Action::RandomRead, Action::ClockReadSystem, Action::ClockReadMonotonic, Action::CliExit], 
+            &[Action::CliExit], 
             || (), 
             || ()
         );

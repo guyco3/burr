@@ -9,3 +9,5 @@ crate-type = ["cdylib"]
 [dependencies]
 cedar-policy = "4.12.0"
 wit-bindgen = "0.60.0"
+log = "0.4"
+env_logger = "0.11"

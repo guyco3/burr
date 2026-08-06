@@ -23,6 +23,11 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .format_timestamp(None)
+        .format_module_path(false)
+        .init();
+
     let cli = Cli::parse();
 
     match &cli.command {

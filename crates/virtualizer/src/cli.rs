@@ -15,64 +15,6 @@ impl crate::exports::wasi::cli::exit::Guest for VirtualizationProxy {
 }
 
 
-impl crate::exports::wasi::cli::stderr::Guest for VirtualizationProxy {
-    fn write_via_stream(_data: wit_bindgen::rt::async_support::StreamReader<u8>) -> wit_bindgen::rt::async_support::FutureReader<Result<(), crate::wasi::cli::types::ErrorCode>> { 
-        unimplemented!() 
-    }
-}
-
-impl crate::exports::wasi::cli::stdin::Guest for VirtualizationProxy {
-    fn read_via_stream() -> (wit_bindgen::rt::async_support::StreamReader<u8>, wit_bindgen::rt::async_support::FutureReader<Result<(), crate::exports::wasi::cli::stdin::ErrorCode>>) { 
-        unimplemented!() 
-    }
-}
-
-impl crate::exports::wasi::cli::stdout::Guest for VirtualizationProxy {
-    fn write_via_stream(_data: wit_bindgen::rt::async_support::StreamReader<u8>) -> wit_bindgen::rt::async_support::FutureReader<Result<(), crate::wasi::cli::types::ErrorCode>> { 
-        unimplemented!() 
-    }
-}
-
-pub struct ProxyTerminalInput {
-    pub inner: crate::wasi::cli::terminal_input::TerminalInput,
-}
-impl crate::exports::wasi::cli::terminal_input::GuestTerminalInput for ProxyTerminalInput {}
-impl crate::exports::wasi::cli::terminal_input::Guest for VirtualizationProxy {
-    type TerminalInput = ProxyTerminalInput;
-}
-
-pub struct ProxyTerminalOutput {
-    pub inner: crate::wasi::cli::terminal_output::TerminalOutput,
-}
-impl crate::exports::wasi::cli::terminal_output::GuestTerminalOutput for ProxyTerminalOutput {}
-impl crate::exports::wasi::cli::terminal_output::Guest for VirtualizationProxy {
-    type TerminalOutput = ProxyTerminalOutput;
-}
-
-impl crate::exports::wasi::cli::terminal_stderr::Guest for VirtualizationProxy {
-    fn get_terminal_stderr() -> Option<crate::exports::wasi::cli::terminal_output::TerminalOutput> {
-        crate::wasi::cli::terminal_stderr::get_terminal_stderr().map(|inner| {
-            crate::exports::wasi::cli::terminal_output::TerminalOutput::new(ProxyTerminalOutput { inner })
-        })
-    }
-}
-
-impl crate::exports::wasi::cli::terminal_stdin::Guest for VirtualizationProxy {
-    fn get_terminal_stdin() -> Option<crate::exports::wasi::cli::terminal_input::TerminalInput> {
-        crate::wasi::cli::terminal_stdin::get_terminal_stdin().map(|inner| {
-            crate::exports::wasi::cli::terminal_input::TerminalInput::new(ProxyTerminalInput { inner })
-        })
-    }
-}
-
-impl crate::exports::wasi::cli::terminal_stdout::Guest for VirtualizationProxy {
-    fn get_terminal_stdout() -> Option<crate::exports::wasi::cli::terminal_output::TerminalOutput> {
-        crate::wasi::cli::terminal_stdout::get_terminal_stdout().map(|inner| {
-            crate::exports::wasi::cli::terminal_output::TerminalOutput::new(ProxyTerminalOutput { inner })
-        })
-    }
-}
-
 impl crate::exports::wasi::cli::environment::Guest for VirtualizationProxy {
     fn get_environment() -> Vec<(String, String)> {
         let policy = crate::policy::get_engine();

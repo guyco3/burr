@@ -62,6 +62,25 @@ await telemetry.runDemo();
 > node --experimental-wasm-jspi app.js
 > ```
 
+## Implementation Status
+
+`wrdn` currently intercepts and enforces security policies on the following WASI 0.3 capabilities:
+- `wasi:cli/environment`
+- `wasi:filesystem`
+- `wasi:sockets`
+- `wasi:http`
+
+### WASM Component Composition & Bubbling
+
+You might notice that benign interfaces like `wasi:clocks`, `wasi:random`, and terminal streams (`wasi:cli/stdout`, `wasi:cli/stderr`) are deliberately omitted from the virtualizer's exports. 
+
+This relies on native "bubbling" up to the host via composition tools like `jco` (or `wac`). When a guest component requires a capability that the virtualizer middleware doesn't export, the composition tool automatically bridges that requirement directly to the host runtime.
+
+**Why is this a best practice?**
+- **Zero Overhead:** Avoiding WASM-to-WASM context switches for high-traffic or benign streams (like standard output or clocks).
+- **Future Proofing:** Omitted capabilities automatically inherit new WASI interface updates without requiring manual code changes in the virtualizer.
+- **Security / Threat Model Boundary:** Streams and clocks are generally considered nuisance threats (e.g., terminal spam or UI hangs), not system compromise threats. They belong at the user-agency level, aligning with the Principle of Least Privilege for middleware.
+
 ## Policies
 
 The generated `policy.cedar` is intentionally strict. The default behavior is to **Deny All** (`forbid`). You must manually edit this policy to grant specific capabilities to the guest module.
