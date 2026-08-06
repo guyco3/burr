@@ -1,5 +1,6 @@
 use crate::VirtualizationProxy;
 use crate::exports::wasi::sockets::types;
+use crate::policy::{Action, authorize_and_execute};
 use crate::exports::wasi::sockets::ip_name_lookup;
 use crate::exports::wasi::sockets::types::*;
 
@@ -16,7 +17,6 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
                         &self,
                         local_address: IpSocketAddress,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
         let ip_str = match &local_address {
             IpSocketAddress::Ipv4(v4) => format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
             IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
@@ -25,14 +25,19 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
             IpSocketAddress::Ipv4(v4) => v4.port,
             IpSocketAddress::Ipv6(v6) => v6.port,
         };
-        policy.authorize(&crate::policy::Action::SocketConnect { ip: ip_str, port }).map_err(|_| ErrorCode::AccessDenied)?;
-        unsafe { std::mem::transmute(self.inner.bind(unsafe { std::mem::transmute(local_address) })) }
+        authorize_and_execute(
+            &[Action::SocketConnect { ip: ip_str, port }],
+            || ErrorCode::AccessDenied,
+            || {
+                let res: Result<(), ErrorCode> = unsafe { std::mem::transmute(self.inner.bind(unsafe { std::mem::transmute(local_address) })) };
+                res
+            }
+        )?
     }
     async fn connect(
                         &self,
                         remote_address: IpSocketAddress,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
         let ip_str = match &remote_address {
             IpSocketAddress::Ipv4(v4) => format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
             IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
@@ -41,8 +46,13 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
             IpSocketAddress::Ipv4(v4) => v4.port,
             IpSocketAddress::Ipv6(v6) => v6.port,
         };
-        policy.authorize(&crate::policy::Action::SocketConnect { ip: ip_str, port }).map_err(|_| ErrorCode::AccessDenied)?;
-        unsafe { std::mem::transmute(self.inner.connect(unsafe { std::mem::transmute(remote_address) }).await) }
+        authorize_and_execute(
+            &[Action::SocketConnect { ip: ip_str, port }],
+            || ErrorCode::AccessDenied,
+            || async {
+                unsafe { std::mem::transmute(self.inner.connect(unsafe { std::mem::transmute(remote_address) }).await) }
+            }
+        )?.await
     }
     fn listen(
                         &self,
@@ -157,7 +167,6 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
                         &self,
                         local_address: IpSocketAddress,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
         let ip_str = match &local_address {
             IpSocketAddress::Ipv4(v4) => format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
             IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
@@ -166,14 +175,19 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             IpSocketAddress::Ipv4(v4) => v4.port,
             IpSocketAddress::Ipv6(v6) => v6.port,
         };
-        policy.authorize(&crate::policy::Action::SocketConnect { ip: ip_str, port }).map_err(|_| ErrorCode::AccessDenied)?;
-        unsafe { std::mem::transmute(self.inner.bind(unsafe { std::mem::transmute(local_address) })) }
+        authorize_and_execute(
+            &[Action::SocketConnect { ip: ip_str, port }],
+            || ErrorCode::AccessDenied,
+            || {
+                let res: Result<(), ErrorCode> = unsafe { std::mem::transmute(self.inner.bind(unsafe { std::mem::transmute(local_address) })) };
+                res
+            }
+        )?
     }
     fn connect(
                         &self,
                         remote_address: IpSocketAddress,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
         let ip_str = match &remote_address {
             IpSocketAddress::Ipv4(v4) => format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
             IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
@@ -182,8 +196,14 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             IpSocketAddress::Ipv4(v4) => v4.port,
             IpSocketAddress::Ipv6(v6) => v6.port,
         };
-        policy.authorize(&crate::policy::Action::SocketConnect { ip: ip_str, port }).map_err(|_| ErrorCode::AccessDenied)?;
-        unsafe { std::mem::transmute(self.inner.connect(unsafe { std::mem::transmute(remote_address) })) }
+        authorize_and_execute(
+            &[Action::SocketConnect { ip: ip_str, port }],
+            || ErrorCode::AccessDenied,
+            || {
+                let res: Result<(), ErrorCode> = unsafe { std::mem::transmute(self.inner.connect(unsafe { std::mem::transmute(remote_address) })) };
+                res
+            }
+        )?
     }
     fn disconnect(&self) -> Result<(), ErrorCode> {
         unsafe { std::mem::transmute(self.inner.disconnect()) }
@@ -239,15 +259,17 @@ impl types::Guest for VirtualizationProxy {
 
 impl ip_name_lookup::Guest for VirtualizationProxy {
     async fn resolve_addresses(name: String) -> Result<Vec<ip_name_lookup::IpAddress>, ip_name_lookup::ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::DnsLookup(name.clone())).map_err(|_| ip_name_lookup::ErrorCode::NameUnresolvable)?;
-        
-        println!("WARDEN: Before inner.resolve_addresses for name: {}", name);
-        let addrs = crate::wasi::sockets::ip_name_lookup::resolve_addresses(name.clone()).await;
-        println!("WARDEN: After inner.resolve_addresses. Result: {}", addrs.is_ok());
-        
-        let addrs = addrs.map_err(|e| unsafe { std::mem::transmute(e) })?;
-        // Do not transmute Vec! Manually map.
-        Ok(addrs.into_iter().map(|a| unsafe { std::mem::transmute(a) }).collect())
+        authorize_and_execute(
+            &[Action::DnsLookup(name.clone())],
+            || ip_name_lookup::ErrorCode::NameUnresolvable,
+            || async {
+                println!("WARDEN: Before inner.resolve_addresses for name: {}", name);
+                let addrs = crate::wasi::sockets::ip_name_lookup::resolve_addresses(name.clone()).await;
+                println!("WARDEN: After inner.resolve_addresses. Result: {}", addrs.is_ok());
+                
+                let addrs = addrs.map_err(|e| unsafe { std::mem::transmute(e) })?;
+                Ok(addrs.into_iter().map(|a| unsafe { std::mem::transmute(a) }).collect())
+            }
+        )?.await
     }
 }

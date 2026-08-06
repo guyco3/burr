@@ -4,6 +4,6 @@ members = [
     "crates/virtualizer",
     "examples/guests/telemetry-demo",
     "examples/guests/data-processor"
-]
+, "examples/guests/adversary-fuzzer"]
 
 resolver = "2"

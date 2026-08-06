@@ -4,11 +4,10 @@ use crate::exports::wasi::http::client;
 use crate::wasi::http::handler as host_handler;
 use crate::wasi::http::client as host_client;
 use crate::wasi::http::types::{Request, Response, ErrorCode};
-use crate::policy::{Action, PolicyEngine};
+use crate::policy::{Action, authorize_and_execute};
 
 impl handler::Guest for VirtualizationProxy {
     async fn handle(request: Request) -> Result<Response, ErrorCode> {
-        let policy = crate::policy::get_engine();
         let authority = request.get_authority().unwrap_or_default();
         let path = request.get_path_with_query().unwrap_or_default();
         let method_str = match request.get_method() {
@@ -26,17 +25,21 @@ impl handler::Guest for VirtualizationProxy {
 
         let full_url = format!("{}{}", authority, path);
 
-        policy.authorize(&Action::HttpIncomingRequest { 
-            url: full_url, 
-            method: method_str 
-        }).map_err(|_| ErrorCode::HttpRequestDenied)?;
-        host_handler::handle(request).await
+        authorize_and_execute(
+            &[Action::HttpIncomingRequest { 
+                url: full_url, 
+                method: method_str 
+            }],
+            || ErrorCode::HttpRequestDenied,
+            || async {
+                host_handler::handle(request).await
+            }
+        )?.await
     }
 }
 
 impl client::Guest for VirtualizationProxy {
     async fn send(request: Request) -> Result<Response, ErrorCode> {
-        let policy = crate::policy::get_engine();
         let authority = request.get_authority().unwrap_or_default();
         let path = request.get_path_with_query().unwrap_or_default();
         let method_str = match request.get_method() {
@@ -54,10 +57,15 @@ impl client::Guest for VirtualizationProxy {
 
         let full_url = format!("{}{}", authority, path);
 
-        policy.authorize(&Action::HttpOutgoingRequest { 
-            url: full_url, 
-            method: method_str 
-        }).map_err(|_| ErrorCode::HttpRequestDenied)?;
-        host_client::send(request).await
+        authorize_and_execute(
+            &[Action::HttpOutgoingRequest { 
+                url: full_url, 
+                method: method_str 
+            }],
+            || ErrorCode::HttpRequestDenied,
+            || async {
+                host_client::send(request).await
+            }
+        )?.await
     }
 }

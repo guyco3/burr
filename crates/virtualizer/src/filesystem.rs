@@ -1,4 +1,5 @@
 use crate::VirtualizationProxy;
+use crate::policy::{Action, authorize_and_execute};
 use crate::exports::wasi::filesystem::types;
 use crate::exports::wasi::filesystem::preopens;
 use crate::exports::wasi::filesystem::types::*;
@@ -82,9 +83,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         &self,
                         path: String,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.create_directory_at(path).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.create_directory_at(path).await) }
+            }
+        )?.await
     }
     async fn stat(&self) -> Result<DescriptorStat, ErrorCode> {
         unsafe { std::mem::transmute(self.inner.stat().await) }
@@ -94,9 +99,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         path_flags: PathFlags,
                         path: String,
                     ) -> Result<DescriptorStat, ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsRead(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.stat_at(unsafe { std::mem::transmute(path_flags) }, path).await) }
+        authorize_and_execute(
+            &[Action::FsRead(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.stat_at(unsafe { std::mem::transmute(path_flags) }, path).await) }
+            }
+        )?.await
     }
     async fn set_times_at(
                         &self,
@@ -105,9 +114,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         data_access_timestamp: NewTimestamp,
                         data_modification_timestamp: NewTimestamp,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.set_times_at(unsafe { std::mem::transmute(path_flags) }, path, unsafe { std::mem::transmute(data_access_timestamp) }, unsafe { std::mem::transmute(data_modification_timestamp) }).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.set_times_at(unsafe { std::mem::transmute(path_flags) }, path, unsafe { std::mem::transmute(data_access_timestamp) }, unsafe { std::mem::transmute(data_modification_timestamp) }).await) }
+            }
+        )?.await
     }
     async fn link_at(
                         &self,
@@ -116,7 +129,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         new_descriptor: DescriptorBorrow<'_>,
                         new_path: String,
                     ) -> Result<(), ErrorCode> {
-        unsafe { std::mem::transmute(self.inner.link_at(unsafe { std::mem::transmute(old_path_flags) }, old_path, &new_descriptor.get::<ProxyDescriptor>().inner, new_path).await) }
+        authorize_and_execute(
+            &[Action::FsRead(old_path.clone()), Action::FsWrite(new_path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.link_at(unsafe { std::mem::transmute(old_path_flags) }, old_path, &new_descriptor.get::<ProxyDescriptor>().inner, new_path).await) }
+            }
+        )?.await
     }
     async fn open_at(
                         &self,
@@ -125,27 +144,39 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         open_flags: OpenFlags,
                         flags: DescriptorFlags,
                     ) -> Result<Descriptor, ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsRead(path.clone())).map_err(|_| ErrorCode::Access)?;
-        let inner = self.inner.open_at(unsafe { std::mem::transmute(path_flags) }, path, unsafe { std::mem::transmute(open_flags) }, unsafe { std::mem::transmute(flags) }).await
-            .map_err(|e| unsafe { std::mem::transmute(e) })?;
-        Ok(Descriptor::new(ProxyDescriptor { inner }))
+        authorize_and_execute(
+            &[Action::FsRead(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                let inner = self.inner.open_at(unsafe { std::mem::transmute(path_flags) }, path, unsafe { std::mem::transmute(open_flags) }, unsafe { std::mem::transmute(flags) }).await
+                    .map_err(|e| unsafe { std::mem::transmute(e) })?;
+                Ok(Descriptor::new(ProxyDescriptor { inner }))
+            }
+        )?.await
     }
     async fn readlink_at(
                         &self,
                         path: String,
                     ) -> Result<String, ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsRead(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.readlink_at(path).await) }
+        authorize_and_execute(
+            &[Action::FsRead(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.readlink_at(path).await) }
+            }
+        )?.await
     }
     async fn remove_directory_at(
                         &self,
                         path: String,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.remove_directory_at(path).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.remove_directory_at(path).await) }
+            }
+        )?.await
     }
     async fn rename_at(
                         &self,
@@ -153,27 +184,38 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         new_descriptor: DescriptorBorrow<'_>,
                         new_path: String,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(old_path.clone())).map_err(|_| ErrorCode::Access)?;
-        policy.authorize(&crate::policy::Action::FsWrite(new_path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.rename_at(old_path, &new_descriptor.get::<ProxyDescriptor>().inner, new_path).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(old_path.clone()), Action::FsWrite(new_path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.rename_at(old_path, &new_descriptor.get::<ProxyDescriptor>().inner, new_path).await) }
+            }
+        )?.await
     }
     async fn symlink_at(
                         &self,
                         old_path: String,
                         new_path: String,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(new_path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.symlink_at(old_path, new_path).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(new_path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.symlink_at(old_path, new_path).await) }
+            }
+        )?.await
     }
     async fn unlink_file_at(
                         &self,
                         path: String,
                     ) -> Result<(), ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsWrite(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.unlink_file_at(path).await) }
+        authorize_and_execute(
+            &[Action::FsWrite(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.unlink_file_at(path).await) }
+            }
+        )?.await
     }
     async fn is_same_object(&self, other: DescriptorBorrow<'_>) -> bool {
         unsafe { std::mem::transmute(self.inner.is_same_object(&other.get::<ProxyDescriptor>().inner).await) }
@@ -188,9 +230,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
                         path_flags: PathFlags,
                         path: String,
                     ) -> Result<MetadataHashValue, ErrorCode> {
-        let policy = crate::policy::get_engine();
-        policy.authorize(&crate::policy::Action::FsRead(path.clone())).map_err(|_| ErrorCode::Access)?;
-        unsafe { std::mem::transmute(self.inner.metadata_hash_at(unsafe { std::mem::transmute(path_flags) }, path).await) }
+        authorize_and_execute(
+            &[Action::FsRead(path.clone())],
+            || ErrorCode::Access,
+            || async {
+                unsafe { std::mem::transmute(self.inner.metadata_hash_at(unsafe { std::mem::transmute(path_flags) }, path).await) }
+            }
+        )?.await
     }
 }
 
