@@ -4,7 +4,21 @@
 
 `wrdn` is a security tool for Node.js and Deno that allows you to safely run third-party WebAssembly (WASM) components. 
 
-By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `wrdn` wraps untrusted third-party WASM modules in a secure "Virtualizer". This Virtualizer intercepts all system capability requests (like reading files, environment variables, or making network connections) and validates them against a customizable policy engine at runtime.
+By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `wrdn` wraps untrusted third-party WASM modules in a secure "Virtualizer".
+
+## Examples (Supply Chain Scenarios)
+
+The `examples/` directory demonstrates how `wrdn` neutralizes four realistic supply chain attacks using strict Cedar policies:
+
+1. **`01-telemetry-exfiltration`:** A malicious logger attempts to read sensitive environment variables and exfiltrate them via an HTTP POST request. `wrdn` blocks the HTTP request to the unauthorized C2 server.
+2. **`02-credential-harvester`:** A rogue image processing library tries to read SSH keys from the filesystem and dump them over a raw TCP socket. `wrdn` restricts filesystem access to designated scratch directories and strictly forbids raw socket connections.
+3. **`03-silent-backdoor`:** A compromised data serialization library performs a DNS lookup and attempts to connect a TCP socket to open a reverse shell. `wrdn` intercepts both the DNS query and socket creation at the boundary.
+4. **`04-logic-bomb`:** A payload targets production environments by checking `NODE_ENV`. If detected, it attempts to drop a malicious bash script and kill the host process via `wasi:cli/exit`. `wrdn` prevents both unauthorized filesystem writes and premature host exits.
+
+You can run the full end-to-end test suite (which covers all scenarios plus a virtualizer vulnerability fuzzer) by running:
+```bash
+./run_e2e_tests.sh
+```
 
 ## Installation
 

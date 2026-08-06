@@ -1,5 +1,0 @@
-forbid(
-    principal,
-    action,
-    resource
-);

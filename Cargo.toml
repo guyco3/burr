@@ -2,8 +2,11 @@
 members = [
     "crates/cli",
     "crates/virtualizer",
-    "examples/guests/telemetry-demo",
-    "examples/guests/data-processor"
-, "examples/guests/adversary-fuzzer"]
+    "examples/guests/adversary-fuzzer",
+    "examples/guests/01-telemetry-logger",
+    "examples/guests/02-image-processor",
+    "examples/guests/03-data-serializer",
+    "examples/guests/04-env-analyzer"
+]
 
 resolver = "2"

@@ -1,0 +1,16 @@
+package local:demo@0.1.0;
+
+interface guest-runner {
+    execute: func();
+}
+
+world component {
+    import wasi:cli/environment@0.3.0;
+    import wasi:cli/exit@0.3.0;
+    import wasi:filesystem/preopens@0.3.0;
+    import wasi:filesystem/types@0.3.0;
+    import wasi:sockets/ip-name-lookup@0.3.0;
+    import wasi:sockets/types@0.3.0;
+
+    export guest-runner;
+}
