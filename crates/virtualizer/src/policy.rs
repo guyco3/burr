@@ -2,6 +2,7 @@ use cedar_policy::{Authorizer, Context, Decision, Entities, EntityId, EntityType
 use std::str::FromStr;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub enum Action {
     EnvRead(String),
     FsRead(String),
@@ -147,6 +148,36 @@ pub fn get_engine() -> &'static PolicyEngine {
     POLICY_ENGINE.get_or_init(|| PolicyEngine::from_env())
 }
 
+pub fn authorize_and_execute_with_engine<T, E, ErrMapper, F>(
+    policy: &PolicyEngine,
+    requirements: &[Action],
+    err_mapper: ErrMapper,
+    host_operation: F,
+) -> Result<T, E>
+where
+    ErrMapper: Fn() -> E,
+    F: FnOnce() -> T,
+{
+    for req in requirements {
+        policy.authorize(req).map_err(|_| err_mapper())?;
+    }
+    Ok(host_operation())
+}
+
+/// The Interceptor: It is physically impossible to execute `host_operation` 
+/// without first passing the checks for every `Action` in `requirements`.
+pub fn authorize_and_execute<T, E, ErrMapper, F>(
+    requirements: &[Action],
+    err_mapper: ErrMapper,
+    host_operation: F,
+) -> Result<T, E>
+where
+    ErrMapper: Fn() -> E,
+    F: FnOnce() -> T,
+{
+    authorize_and_execute_with_engine(get_engine(), requirements, err_mapper, host_operation)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -159,11 +190,50 @@ mod tests {
     }
 
     #[test]
-    fn test_default_deny() {
+    fn test_global_deny_all_interfaces() {
+        let engine = setup_engine(""); // Empty policy = Deny All
+
+        let exhaustive_actions = [
+            Action::EnvRead("SECRET_KEY".to_string()),
+            Action::FsRead("/etc/passwd".to_string()),
+            Action::FsWrite("/etc/passwd".to_string()),
+            Action::HttpIncomingRequest { url: "http://example.com".to_string(), method: "GET".to_string() },
+            Action::HttpOutgoingRequest { url: "http://example.com".to_string(), method: "POST".to_string() },
+            Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 53 },
+            Action::DnsLookup("google.com".to_string()),
+        ];
+
+        for action in exhaustive_actions {
+            let result = engine.authorize(&action);
+            assert!(
+                result.is_err(),
+                "CRITICAL: System failed closed. {:?} bypassed the Deny-All policy.",
+                action
+            );
+        }
+    }
+
+    #[test]
+    fn test_interceptor() {
         let engine = setup_engine(""); // Empty policy
-        assert!(engine.authorize(&Action::FsRead("/etc/passwd".to_string())).is_err());
-        assert!(engine.authorize(&Action::EnvRead("SECRET_KEY".to_string())).is_err());
-        assert!(engine.authorize(&Action::SocketConnect { ip: "1.2.3.4".to_string(), port: 80 }).is_err());
+        
+        // Testing that the interceptor forwards the mapped error
+        let result = authorize_and_execute_with_engine::<(), &str, _, _>(
+            &engine, 
+            &[Action::FsRead("/etc/passwd".to_string())], 
+            || "CustomError", 
+            || ()
+        );
+        assert_eq!(result, Err("CustomError"));
+        
+        // Testing that the interceptor executes the closure if requirements are benign
+        let result2 = authorize_and_execute_with_engine::<&str, &str, _, _>(
+            &engine, 
+            &[Action::RandomRead], 
+            || "CustomError", 
+            || "Success"
+        );
+        assert_eq!(result2, Ok("Success"));
     }
 
     #[test]
@@ -179,10 +249,15 @@ mod tests {
         "#;
         let engine = setup_engine(policy);
         
-        // Allowed by policy
-        assert!(engine.authorize(&Action::EnvRead("APP_ENV".to_string())).is_ok());
-        // Blocked (default deny)
-        assert!(engine.authorize(&Action::EnvRead("SECRET_KEY".to_string())).is_err());
+        let success = authorize_and_execute_with_engine::<&str, &str, _, _>(
+            &engine, &[Action::EnvRead("APP_ENV".to_string())], || "CustomError", || "Success"
+        );
+        assert_eq!(success, Ok("Success"));
+
+        let fail = authorize_and_execute_with_engine::<&str, &str, _, _>(
+            &engine, &[Action::EnvRead("SECRET_KEY".to_string())], || "CustomError", || "Success"
+        );
+        assert_eq!(fail, Err("CustomError"));
     }
 
     #[test]
@@ -199,25 +274,33 @@ mod tests {
         "#;
         let engine = setup_engine(policy);
         
-        // Exact match
-        assert!(engine.authorize(&Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 443 }).is_ok());
-        
-        // Wrong port
-        assert!(engine.authorize(&Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 80 }).is_err());
-        
-        // Wrong IP
-        assert!(engine.authorize(&Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 443 }).is_err());
+        let success = authorize_and_execute_with_engine::<(), (), _, _>(
+            &engine, &[Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 443 }], || (), || ()
+        );
+        assert!(success.is_ok());
+
+        let fail_port = authorize_and_execute_with_engine::<(), (), _, _>(
+            &engine, &[Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 80 }], || (), || ()
+        );
+        assert!(fail_port.is_err());
+
+        let fail_ip = authorize_and_execute_with_engine::<(), (), _, _>(
+            &engine, &[Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 443 }], || (), || ()
+        );
+        assert!(fail_ip.is_err());
     }
 
     #[test]
     fn test_benign_actions() {
         let engine = setup_engine(""); // Empty policy
         
-        // These should be allowed by the fallback MVP rules even with no policy
-        assert!(engine.authorize(&Action::RandomRead).is_ok());
-        assert!(engine.authorize(&Action::ClockReadSystem).is_ok());
-        assert!(engine.authorize(&Action::ClockReadMonotonic).is_ok());
-        assert!(engine.authorize(&Action::CliExit).is_ok());
+        let success = authorize_and_execute_with_engine::<(), (), _, _>(
+            &engine, 
+            &[Action::RandomRead, Action::ClockReadSystem, Action::ClockReadMonotonic, Action::CliExit], 
+            || (), 
+            || ()
+        );
+        assert!(success.is_ok());
     }
 }
 
