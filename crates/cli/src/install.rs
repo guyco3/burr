@@ -7,27 +7,7 @@ use crate::policy;
 
 const VIRTUALIZER_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/virtualizer.wasm"));
 
-const WARDEN_SHIM_JS: &str = r#"
-import * as warden from './out-warden/virtualizer.js';
-
-const env = warden['wasi:cli/environment@0.3.0'];
-export const getEnvironment = env?.getEnvironment;
-export const getArguments = env?.getArguments;
-export const initialCwd = env?.initialCwd;
-
-const preopens = warden['wasi:filesystem/preopens@0.3.0'];
-export const getDirectories = preopens?.getDirectories;
-
-const fsTypes = warden['wasi:filesystem/types@0.3.0'];
-export const Descriptor = fsTypes?.Descriptor;
-
-const sockTypes = warden['wasi:sockets/types@0.3.0'];
-export const TcpSocket = sockTypes?.TcpSocket;
-export const UdpSocket = sockTypes?.UdpSocket;
-
-const ipLookup = warden['wasi:sockets/ip-name-lookup@0.3.0'];
-export const resolveAddresses = ipLookup?.resolveAddresses;
-"#;
+const WARDEN_SHIM_JS: &str = include_str!("assets/warden_shim.js");
 
 #[derive(Debug, PartialEq)]
 pub enum ParsedReference {
@@ -66,10 +46,10 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     match parsed {
         ParsedReference::Local(local_path, _) => {
             fs::copy(&local_path, &guest_wasm_path).context("Failed to copy local guest wasm")?;
-            println!("Using local guest wasm from {}...", local_path.display());
+            log::info!("Using local guest wasm from {}...", local_path.display());
         }
         ParsedReference::Oci(reference, _) => {
-            println!("Pulling guest wasm from {}...", oci_ref);
+            log::info!("Pulling guest wasm from {}...", oci_ref);
             let mut client = Client::new(oci_client::client::ClientConfig::default());
             let image_data = client
                 .pull(
@@ -88,11 +68,11 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
         }
     }
 
-    println!("Writing embedded virtualizer...");
+    log::info!("Writing embedded virtualizer...");
     let virtualizer_path = pkg_dir.join("virtualizer.wasm");
     fs::write(&virtualizer_path, VIRTUALIZER_WASM).context("Failed to write virtualizer wasm")?;
 
-    println!("Transpiling virtualizer...");
+    log::info!("Transpiling virtualizer...");
     let status = Command::new("npx")
         .args(&[
             "-p", "@bytecodealliance/jco@1.27.0",
@@ -108,11 +88,11 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
         anyhow::bail!("jco transpile failed for virtualizer");
     }
 
-    println!("Creating module mapper shim...");
+    log::info!("Creating module mapper shim...");
     let shim_path = pkg_dir.join("warden_shim.js");
     fs::write(&shim_path, WARDEN_SHIM_JS).context("Failed to write warden shim")?;
 
-    println!("Transpiling guest with mappings...");
+    log::info!("Transpiling guest with mappings...");
     let shim_rel_path = "../warden_shim.js";
     let status = Command::new("npx")
         .args(&[
@@ -136,20 +116,13 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
 
     policy::ensure_policy_exists(&pkg_dir)?;
 
-    println!("Generating Node.js entrypoint...");
+    log::info!("Generating Node.js entrypoint...");
     let index_js_path = pkg_dir.join("index.js");
-    let index_js_content = r#"import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-process.env.WRDN_POLICY_PATH = path.join(__dirname, 'policy.cedar');
-
-export * from './out-guest/guest.js';
-"#;
+    let index_js_content = include_str!("assets/index.js");
     fs::write(&index_js_path, index_js_content).context("Failed to write index.js entrypoint")?;
 
-    println!("Installation complete for {}.", oci_ref);
-    println!("To use this package, import from '.wrdn/{}/index.js'", pkg_name);
+    log::info!("Installation complete for {}.", oci_ref);
+    log::info!("To use this package, import from '.wrdn/{}/index.js'", pkg_name);
     
     Ok(())
 }

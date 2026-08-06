@@ -263,9 +263,9 @@ impl ip_name_lookup::Guest for VirtualizationProxy {
             &[Action::DnsLookup(name.clone())],
             || ip_name_lookup::ErrorCode::NameUnresolvable,
             || async {
-                println!("WARDEN: Before inner.resolve_addresses for name: {}", name);
+                log::debug!("WARDEN: Before inner.resolve_addresses for name: {}", name);
                 let addrs = crate::wasi::sockets::ip_name_lookup::resolve_addresses(name.clone()).await;
-                println!("WARDEN: After inner.resolve_addresses. Result: {}", addrs.is_ok());
+                log::debug!("WARDEN: After inner.resolve_addresses. Result: {}", addrs.is_ok());
                 
                 let addrs = addrs.map_err(|e| unsafe { std::mem::transmute(e) })?;
                 Ok(addrs.into_iter().map(|a| unsafe { std::mem::transmute(a) }).collect())
