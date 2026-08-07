@@ -40,7 +40,7 @@ namespace Warden {
         principal: Module,
         resource: Resource,
         context: {
-            ip: String,
+            ip: ipaddr,
             port: Long
         }
     };
@@ -51,5 +51,25 @@ namespace Warden {
         context: {
             hostname: String
         }
+    };
+    
+    action cli_exit appliesTo {
+        principal: Module,
+        resource: Resource
+    };
+    
+    action cli_read_environment appliesTo {
+        principal: Module,
+        resource: Resource
+    };
+    
+    action cli_read_arguments appliesTo {
+        principal: Module,
+        resource: Resource
+    };
+    
+    action cli_read_initial_cwd appliesTo {
+        principal: Module,
+        resource: Resource
     };
 }

@@ -118,7 +118,7 @@ impl PolicyEngine {
                 let mut map = HashMap::new();
                 map.insert(
                     "ip".to_string(),
-                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", ip)).unwrap(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip)).unwrap(),
                 );
                 map.insert(
                     "port".to_string(),
@@ -135,13 +135,10 @@ impl PolicyEngine {
                 );
                 ("dns_lookup", "network", map)
             }
-            // Fallback: allow all benign actions that don't have strict Cedar policies in this MVP
-            Action::CliExit
-            | Action::CliReadEnvironment
-            | Action::CliReadArguments
-            | Action::CliReadInitialCwd => {
-                return Ok(());
-            }
+            Action::CliExit => ("cli_exit", "system", HashMap::new()),
+            Action::CliReadEnvironment => ("cli_read_environment", "system", HashMap::new()),
+            Action::CliReadArguments => ("cli_read_arguments", "system", HashMap::new()),
+            Action::CliReadInitialCwd => ("cli_read_initial_cwd", "system", HashMap::new()),
         };
 
         let action = EntityUid::from_type_name_and_id(
@@ -277,14 +274,14 @@ mod tests {
         );
         assert_eq!(result, Err("CustomError"));
 
-        // Testing that the interceptor executes the closure if requirements are benign
+        // Testing that the interceptor executes the closure if permitted
         let result2 = authorize_and_execute_with_engine::<&str, &str, _, _>(
             &engine,
             &[Action::CliExit],
             || "CustomError",
             || "Success",
         );
-        assert_eq!(result2, Ok("Success"));
+        assert_eq!(result2, Err("CustomError"));
     }
 
     #[test]
@@ -325,7 +322,7 @@ mod tests {
                 action == Warden::Action::"socket_connect",
                 resource == Warden::Resource::"network"
             ) when {
-                context.ip == "93.184.216.34" &&
+                context.ip == ip("93.184.216.34") &&
                 context.port == 443
             };
         "#;
@@ -369,12 +366,12 @@ mod tests {
     fn test_benign_actions() {
         let engine = setup_engine(""); // Empty policy
 
-        let success = authorize_and_execute_with_engine::<(), (), _, _>(
+        let fail = authorize_and_execute_with_engine::<(), (), _, _>(
             &engine,
             &[Action::CliExit],
             || (),
             || (),
         );
-        assert!(success.is_ok());
+        assert!(fail.is_err());
     }
 }
