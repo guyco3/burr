@@ -30,14 +30,14 @@ run_scenario() {
     echo "=== Testing $scenario ==="
     
     # 1. wrdn install on the Host (so we don't mix OS/glibc binaries)
-    cd tests/integration/scenarios/$scenario
+    cd "$REPO_ROOT/tests/integration/scenarios/$scenario"
     wrdn install "file://$REPO_ROOT/$guest_path"
     
     # 2. Overwrite the policy inside the boundary
     cp policy.cedar .wrdn/$pkg_name/policy.cedar
-    cd $REPO_ROOT
     
     # 3. Run the node app inside the Target container
+    cd "$REPO_ROOT/tests/integration"
     set +e
     output=$(docker compose exec -T target bash -c "cd scenarios/$scenario && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
     exit_code=$?
@@ -60,11 +60,11 @@ run_scenario "telemetry-exfiltration" "target/wasm32-wasip2/release/telemetry_lo
 run_scenario "credential-harvester" "target/wasm32-wasip2/release/image_processor.wasm" "image_processor"
 
 echo "=== Testing Fuzzer ==="
-cd tests/integration/scenarios/fuzzer
+cd "$REPO_ROOT/tests/integration/scenarios/fuzzer"
 wrdn install "file://$REPO_ROOT/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
 cp policy.cedar .wrdn/adversary_fuzzer/policy.cedar
-cd $REPO_ROOT
 
+cd "$REPO_ROOT/tests/integration"
 set +e
 fuzzer_out=$(docker compose exec -T target bash -c "cd scenarios/fuzzer && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
 exit_code=$?
