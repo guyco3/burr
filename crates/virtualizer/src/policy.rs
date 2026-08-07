@@ -1,6 +1,9 @@
-use cedar_policy::{Authorizer, Context, Decision, Entities, EntityId, EntityTypeName, EntityUid, PolicySet, Request, Schema};
-use std::str::FromStr;
+use cedar_policy::{
+    Authorizer, Context, Decision, Entities, EntityId, EntityTypeName, EntityUid, PolicySet,
+    Request, Schema,
+};
 use std::collections::HashMap;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub enum Action {
@@ -29,12 +32,15 @@ pub struct PolicyEngine {
 impl PolicyEngine {
     pub fn new(policy_str: &str, schema_str: &str, principal_id: String) -> Self {
         let (schema, _) = Schema::from_cedarschema_str(schema_str).expect("Failed to parse schema");
-        
+
         let policies = PolicySet::from_str(policy_str).unwrap_or_else(|e| {
-            log::warn!("WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.", e);
+            log::warn!(
+                "WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.",
+                e
+            );
             PolicySet::new()
         });
-        
+
         env_logger::try_init().ok();
         Self {
             authorizer: Authorizer::new(),
@@ -46,16 +52,19 @@ impl PolicyEngine {
 
     pub fn from_env() -> Self {
         let schema_str = include_str!("../policy/schema.cedarschema");
-        
-        let policy_path = std::env::var("WRDN_POLICY_PATH")
-            .unwrap_or_else(|_| "./policy.cedar".to_string());
-        
-        let policy_str = std::fs::read_to_string(&policy_path)
-            .unwrap_or_else(|e| {
-                log::info!("WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.", policy_path, e);
-                String::new() // Empty policy = deny all
-            });
-            
+
+        let policy_path =
+            std::env::var("WRDN_POLICY_PATH").unwrap_or_else(|_| "./policy.cedar".to_string());
+
+        let policy_str = std::fs::read_to_string(&policy_path).unwrap_or_else(|e| {
+            log::info!(
+                "WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.",
+                policy_path,
+                e
+            );
+            String::new() // Empty policy = deny all
+        });
+
         // Hardcoded for now since the virtualizer is currently a single-tenant host.
         Self::new(&policy_str, schema_str, "telemetry-demo".to_string())
     }
@@ -69,39 +78,68 @@ impl PolicyEngine {
         let (action_str, resource_str, mut ctx_map) = match action_req {
             Action::EnvRead(key) => {
                 let mut map = HashMap::new();
-                map.insert("key".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", key)).unwrap());
+                map.insert(
+                    "key".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", key)).unwrap(),
+                );
                 ("env_read", "environment", map)
-            },
+            }
             Action::FsRead(path) => {
                 let mut map = HashMap::new();
-                map.insert("path".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", path)).unwrap());
+                map.insert(
+                    "path".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", path)).unwrap(),
+                );
                 ("fs_read", "filesystem", map)
-            },
+            }
             Action::FsWrite(path) => {
                 let mut map = HashMap::new();
-                map.insert("path".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", path)).unwrap());
+                map.insert(
+                    "path".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", path)).unwrap(),
+                );
                 ("fs_write", "filesystem", map)
-            },
-            Action::HttpOutgoingRequest { url, method } | Action::HttpIncomingRequest { url, method } => {
+            }
+            Action::HttpOutgoingRequest { url, method }
+            | Action::HttpIncomingRequest { url, method } => {
                 let mut map = HashMap::new();
-                map.insert("url".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", url)).unwrap());
-                map.insert("method".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", method)).unwrap());
+                map.insert(
+                    "url".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", url)).unwrap(),
+                );
+                map.insert(
+                    "method".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", method))
+                        .unwrap(),
+                );
                 ("http_request", "network", map)
-            },
+            }
             Action::SocketConnect { ip, port } => {
                 let mut map = HashMap::new();
-                map.insert("ip".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", ip)).unwrap());
-                map.insert("port".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("{}", port)).unwrap());
+                map.insert(
+                    "ip".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", ip)).unwrap(),
+                );
+                map.insert(
+                    "port".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("{}", port)).unwrap(),
+                );
                 ("socket_connect", "network", map)
-            },
+            }
             Action::DnsLookup(hostname) => {
                 let mut map = HashMap::new();
-                map.insert("hostname".to_string(), cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", hostname)).unwrap());
+                map.insert(
+                    "hostname".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("\"{}\"", hostname))
+                        .unwrap(),
+                );
                 ("dns_lookup", "network", map)
-            },
+            }
             // Fallback: allow all benign actions that don't have strict Cedar policies in this MVP
-            Action::CliExit | Action::CliReadEnvironment | Action::CliReadArguments | 
-            Action::CliReadInitialCwd => {
+            Action::CliExit
+            | Action::CliReadEnvironment
+            | Action::CliReadArguments
+            | Action::CliReadInitialCwd => {
                 return Ok(());
             }
         };
@@ -114,25 +152,31 @@ impl PolicyEngine {
             EntityTypeName::from_str("Warden::Resource").unwrap(),
             EntityId::from_str(resource_str).unwrap(),
         );
-        
+
         let context = Context::from_pairs(ctx_map).unwrap();
-        let request = Request::new(principal, action, resource, context, Some(&self.schema)).unwrap();
+        let request =
+            Request::new(principal, action, resource, context, Some(&self.schema)).unwrap();
         let entities = Entities::empty();
-        
-        let answer = self.authorizer.is_authorized(&request, &self.policies, &entities);
-        
+
+        let answer = self
+            .authorizer
+            .is_authorized(&request, &self.policies, &entities);
+
         let decision_str = match answer.decision() {
             Decision::Allow => "ALLOW",
             Decision::Deny => "DENY",
         };
-        
-        let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
         let log = format!(
             r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "decision": "{}"}}"#,
             timestamp, self.principal_id, action_str, resource_str, decision_str
         );
         log::info!("[WARDEN AUDIT] {}", log);
-        
+
         match answer.decision() {
             Decision::Allow => Ok(()),
             Decision::Deny => Err(()),
@@ -162,7 +206,7 @@ where
     Ok(host_operation())
 }
 
-/// The Interceptor: It is physically impossible to execute `host_operation` 
+/// The Interceptor: It is physically impossible to execute `host_operation`
 /// without first passing the checks for every `Action` in `requirements`.
 pub fn authorize_and_execute<T, E, ErrMapper, F>(
     requirements: &[Action],
@@ -195,9 +239,18 @@ mod tests {
             Action::EnvRead("SECRET_KEY".to_string()),
             Action::FsRead("/etc/passwd".to_string()),
             Action::FsWrite("/etc/passwd".to_string()),
-            Action::HttpIncomingRequest { url: "http://example.com".to_string(), method: "GET".to_string() },
-            Action::HttpOutgoingRequest { url: "http://example.com".to_string(), method: "POST".to_string() },
-            Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 53 },
+            Action::HttpIncomingRequest {
+                url: "http://example.com".to_string(),
+                method: "GET".to_string(),
+            },
+            Action::HttpOutgoingRequest {
+                url: "http://example.com".to_string(),
+                method: "POST".to_string(),
+            },
+            Action::SocketConnect {
+                ip: "1.1.1.1".to_string(),
+                port: 53,
+            },
             Action::DnsLookup("google.com".to_string()),
         ];
 
@@ -214,22 +267,22 @@ mod tests {
     #[test]
     fn test_interceptor() {
         let engine = setup_engine(""); // Empty policy
-        
+
         // Testing that the interceptor forwards the mapped error
         let result = authorize_and_execute_with_engine::<(), &str, _, _>(
-            &engine, 
-            &[Action::FsRead("/etc/passwd".to_string())], 
-            || "CustomError", 
-            || ()
+            &engine,
+            &[Action::FsRead("/etc/passwd".to_string())],
+            || "CustomError",
+            || (),
         );
         assert_eq!(result, Err("CustomError"));
-        
+
         // Testing that the interceptor executes the closure if requirements are benign
         let result2 = authorize_and_execute_with_engine::<&str, &str, _, _>(
-            &engine, 
-            &[Action::CliExit], 
-            || "CustomError", 
-            || "Success"
+            &engine,
+            &[Action::CliExit],
+            || "CustomError",
+            || "Success",
         );
         assert_eq!(result2, Ok("Success"));
     }
@@ -246,14 +299,20 @@ mod tests {
             };
         "#;
         let engine = setup_engine(policy);
-        
+
         let success = authorize_and_execute_with_engine::<&str, &str, _, _>(
-            &engine, &[Action::EnvRead("APP_ENV".to_string())], || "CustomError", || "Success"
+            &engine,
+            &[Action::EnvRead("APP_ENV".to_string())],
+            || "CustomError",
+            || "Success",
         );
         assert_eq!(success, Ok("Success"));
 
         let fail = authorize_and_execute_with_engine::<&str, &str, _, _>(
-            &engine, &[Action::EnvRead("SECRET_KEY".to_string())], || "CustomError", || "Success"
+            &engine,
+            &[Action::EnvRead("SECRET_KEY".to_string())],
+            || "CustomError",
+            || "Success",
         );
         assert_eq!(fail, Err("CustomError"));
     }
@@ -271,19 +330,37 @@ mod tests {
             };
         "#;
         let engine = setup_engine(policy);
-        
+
         let success = authorize_and_execute_with_engine::<(), (), _, _>(
-            &engine, &[Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 443 }], || (), || ()
+            &engine,
+            &[Action::SocketConnect {
+                ip: "93.184.216.34".to_string(),
+                port: 443,
+            }],
+            || (),
+            || (),
         );
         assert!(success.is_ok());
 
         let fail_port = authorize_and_execute_with_engine::<(), (), _, _>(
-            &engine, &[Action::SocketConnect { ip: "93.184.216.34".to_string(), port: 80 }], || (), || ()
+            &engine,
+            &[Action::SocketConnect {
+                ip: "93.184.216.34".to_string(),
+                port: 80,
+            }],
+            || (),
+            || (),
         );
         assert!(fail_port.is_err());
 
         let fail_ip = authorize_and_execute_with_engine::<(), (), _, _>(
-            &engine, &[Action::SocketConnect { ip: "1.1.1.1".to_string(), port: 443 }], || (), || ()
+            &engine,
+            &[Action::SocketConnect {
+                ip: "1.1.1.1".to_string(),
+                port: 443,
+            }],
+            || (),
+            || (),
         );
         assert!(fail_ip.is_err());
     }
@@ -291,14 +368,13 @@ mod tests {
     #[test]
     fn test_benign_actions() {
         let engine = setup_engine(""); // Empty policy
-        
+
         let success = authorize_and_execute_with_engine::<(), (), _, _>(
-            &engine, 
-            &[Action::CliExit], 
-            || (), 
-            || ()
+            &engine,
+            &[Action::CliExit],
+            || (),
+            || (),
         );
         assert!(success.is_ok());
     }
 }
-

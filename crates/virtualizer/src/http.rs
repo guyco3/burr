@@ -1,10 +1,10 @@
-use crate::VirtualizationProxy;
-use crate::exports::wasi::http::handler;
 use crate::exports::wasi::http::client;
-use crate::wasi::http::handler as host_handler;
+use crate::exports::wasi::http::handler;
+use crate::policy::{authorize_and_execute, Action};
 use crate::wasi::http::client as host_client;
-use crate::wasi::http::types::{Request, Response, ErrorCode};
-use crate::policy::{Action, authorize_and_execute};
+use crate::wasi::http::handler as host_handler;
+use crate::wasi::http::types::{ErrorCode, Request, Response};
+use crate::VirtualizationProxy;
 
 impl handler::Guest for VirtualizationProxy {
     async fn handle(request: Request) -> Result<Response, ErrorCode> {
@@ -20,21 +20,20 @@ impl handler::Guest for VirtualizationProxy {
             crate::wasi::http::types::Method::Options => "OPTIONS".to_string(),
             crate::wasi::http::types::Method::Connect => "CONNECT".to_string(),
             crate::wasi::http::types::Method::Trace => "TRACE".to_string(),
-            crate::wasi::http::types::Method::Other(s) => s, 
+            crate::wasi::http::types::Method::Other(s) => s,
         };
 
         let full_url = format!("{}{}", authority, path);
 
         authorize_and_execute(
-            &[Action::HttpIncomingRequest { 
-                url: full_url, 
-                method: method_str 
+            &[Action::HttpIncomingRequest {
+                url: full_url,
+                method: method_str,
             }],
             || ErrorCode::HttpRequestDenied,
-            || async {
-                host_handler::handle(request).await
-            }
-        )?.await
+            || async { host_handler::handle(request).await },
+        )?
+        .await
     }
 }
 
@@ -52,20 +51,19 @@ impl client::Guest for VirtualizationProxy {
             crate::wasi::http::types::Method::Options => "OPTIONS".to_string(),
             crate::wasi::http::types::Method::Connect => "CONNECT".to_string(),
             crate::wasi::http::types::Method::Trace => "TRACE".to_string(),
-            crate::wasi::http::types::Method::Other(s) => s, 
+            crate::wasi::http::types::Method::Other(s) => s,
         };
 
         let full_url = format!("{}{}", authority, path);
 
         authorize_and_execute(
-            &[Action::HttpOutgoingRequest { 
-                url: full_url, 
-                method: method_str 
+            &[Action::HttpOutgoingRequest {
+                url: full_url,
+                method: method_str,
             }],
             || ErrorCode::HttpRequestDenied,
-            || async {
-                host_client::send(request).await
-            }
-        )?.await
+            || async { host_client::send(request).await },
+        )?
+        .await
     }
 }

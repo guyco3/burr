@@ -39,7 +39,7 @@ run_scenario() {
     # 3. Run the node app inside the Target container
     cd "$REPO_ROOT/tests/integration"
     set +e
-    output=$(docker compose exec -T target bash -c "cd scenarios/$scenario && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
+    output=$(docker compose exec -T target bash -c "cd scenarios/$scenario && npm install && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
     exit_code=$?
     set -e
     
@@ -66,7 +66,7 @@ cp policy.cedar .wrdn/adversary_fuzzer/policy.cedar
 
 cd "$REPO_ROOT/tests/integration"
 set +e
-fuzzer_out=$(docker compose exec -T target bash -c "cd scenarios/fuzzer && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
+fuzzer_out=$(docker compose exec -T target bash -c "cd scenarios/fuzzer && npm install && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
 exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
