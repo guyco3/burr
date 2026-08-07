@@ -20,7 +20,7 @@ done
 cd tests/integration
 
 echo "Starting Docker Compose environment..."
-docker-compose up -d --build
+docker compose up -d --build
 
 run_scenario() {
     local scenario=$1
@@ -30,14 +30,14 @@ run_scenario() {
     echo "=== Testing $scenario ==="
     
     # 1. wrdn install inside the Target container
-    docker-compose exec -T target bash -c "export PATH=/workspace/target/release:\$PATH && cd scenarios/$scenario && wrdn install 'file:///workspace/$guest_path'"
+    docker compose exec -T target bash -c "export PATH=/workspace/target/release:\$PATH && cd scenarios/$scenario && wrdn install 'file:///workspace/$guest_path'"
     
     # 2. Overwrite the policy inside the boundary
-    docker-compose exec -T target bash -c "cd scenarios/$scenario && cp policy.cedar .wrdn/$pkg_name/policy.cedar"
+    docker compose exec -T target bash -c "cd scenarios/$scenario && cp policy.cedar .wrdn/$pkg_name/policy.cedar"
     
     # 3. Run the node app and capture output
     set +e
-    output=$(docker-compose exec -T target bash -c "cd scenarios/$scenario && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
+    output=$(docker compose exec -T target bash -c "cd scenarios/$scenario && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
     exit_code=$?
     set -e
     
@@ -58,9 +58,9 @@ run_scenario "telemetry-exfiltration" "target/wasm32-wasip2/release/telemetry_lo
 run_scenario "credential-harvester" "target/wasm32-wasip2/release/image_processor.wasm" "image_processor"
 
 echo "=== Testing Fuzzer ==="
-docker-compose exec -T target bash -c "export PATH=/workspace/target/release:\$PATH && cd scenarios/fuzzer && wrdn install 'file:///workspace/target/wasm32-wasip2/release/adversary_fuzzer.wasm'"
+docker compose exec -T target bash -c "export PATH=/workspace/target/release:\$PATH && cd scenarios/fuzzer && wrdn install 'file:///workspace/target/wasm32-wasip2/release/adversary_fuzzer.wasm'"
 set +e
-fuzzer_out=$(docker-compose exec -T target bash -c "cd scenarios/fuzzer && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
+fuzzer_out=$(docker compose exec -T target bash -c "cd scenarios/fuzzer && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
 exit_code=$?
 set -e
 if [ $exit_code -ne 0 ]; then
@@ -76,6 +76,6 @@ else
 fi
 
 echo "Cleaning up..."
-docker-compose down
+docker compose down
 
 echo "=== All Integration Tests Passed ==="

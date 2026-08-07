@@ -63,7 +63,7 @@ jobs:
           IMAGE="ghcr.io/${LOWER_OWNER}/wrdn-test-guest:latest"
           
           oras push $IMAGE \
-            tests/integration/scenarios/telemetry-exfiltration/guest/target/wasm32-wasip2/release/telemetry_logger.wasm:application/vnd.wasm.component.v1+wasm
+            target/wasm32-wasip2/release/telemetry_logger.wasm:application/vnd.wasm.component.v1+wasm
 
       - name: Build wrdn CLI
         run: cargo build --release -p wrdn
