@@ -151,7 +151,11 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let virt_out_dir = pkg_dir.join("out-warden");
     fs::create_dir_all(&virt_out_dir)?;
     for (file_name, data) in virt_transpiled.files {
-        fs::write(virt_out_dir.join(file_name), data)?;
+        let out_path = virt_out_dir.join(file_name);
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(out_path, data)?;
     }
 
     log::info!("Creating module mapper shim...");
@@ -197,7 +201,11 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let guest_out_dir = pkg_dir.join("out-guest");
     fs::create_dir_all(&guest_out_dir)?;
     for (file_name, data) in guest_transpiled.files {
-        fs::write(guest_out_dir.join(file_name), data)?;
+        let out_path = guest_out_dir.join(file_name);
+        if let Some(parent) = out_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(out_path, data)?;
     }
 
     policy::ensure_policy_exists(&pkg_dir)?;
