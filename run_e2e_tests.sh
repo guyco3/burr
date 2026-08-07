@@ -31,7 +31,7 @@ run_scenario() {
     # Provide the necessary environment
     export NODE_ENV=production
     export AWS_SECRET_ACCESS_KEY=123
-    export RUST_LOG=warn
+    export RUST_LOG=info
     
     # Run guest
     set +e

