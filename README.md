@@ -15,9 +15,19 @@ The `examples/` directory demonstrates how `wrdn` neutralizes four realistic sup
 3. **`03-silent-backdoor`:** A compromised data serialization library performs a DNS lookup and attempts to connect a TCP socket to open a reverse shell. `wrdn` intercepts both the DNS query and socket creation at the boundary.
 4. **`04-logic-bomb`:** A payload targets production environments by checking `NODE_ENV`. If detected, it attempts to drop a malicious bash script and kill the host process via `wasi:cli/exit`. `wrdn` prevents both unauthorized filesystem writes and premature host exits.
 
-You can run the full end-to-end test suite (which covers all scenarios plus a virtualizer vulnerability fuzzer) by running:
+### Exploring the Examples
+
+To run the examples and see `wrdn` intercept the supply chain attacks in real-time, you first need to compile the malicious guest components and generate the `.wrdn` boundaries.
+
+We provide a convenient `Makefile` target to handle this for you:
 ```bash
-./run_e2e_tests.sh
+make build-examples
+```
+
+Once the examples are built, simply enter any example directory and run the Node.js host application:
+```bash
+cd examples/01-telemetry-exfiltration
+node index.js
 ```
 
 ## Installation

@@ -1,16 +1,11 @@
 #!/bin/bash
 set -e
 
-echo "=== Building wrdn CLI ==="
-cargo build -p wrdn --release
-export PATH="$(pwd)/target/release:$PATH"
+echo "=== Starting E2E Tests ==="
+# Note: The CLI and guests should be compiled before running this script.
+# Use 'make test' to compile dependencies and run these tests automatically.
 
-echo "=== Building Supply Chain Guest Apps ==="
-(cd examples/guests/01-telemetry-logger && cargo build --target=wasm32-wasip2 --release)
-(cd examples/guests/02-image-processor && cargo build --target=wasm32-wasip2 --release)
-(cd examples/guests/03-data-serializer && cargo build --target=wasm32-wasip2 --release)
-(cd examples/guests/04-env-analyzer && cargo build --target=wasm32-wasip2 --release)
-(cd examples/guests/adversary-fuzzer && cargo build --target=wasm32-wasip2 --release)
+export PATH="$(pwd)/target/release:$PATH"
 
 GUEST_1="$(pwd)/target/wasm32-wasip2/release/telemetry_logger.wasm"
 GUEST_2="$(pwd)/target/wasm32-wasip2/release/image_processor.wasm"

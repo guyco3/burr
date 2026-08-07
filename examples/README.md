@@ -1,49 +1,31 @@
 # wrdn Examples
 
-This directory contains examples demonstrating how to use `wrdn` to secure WebAssembly components in Node.js applications.
+This directory contains realistic simulations of modern software supply chain attacks executed via WebAssembly components.
 
-## Directory Structure
+## How to Build and Run
 
-*   **`guests/`**: Contains the Rust source code for the WebAssembly guests used in the examples.
-    *   **`telemetry-demo/`**: A standard command/CLI component that collects system telemetry (environment variables, etc.) and demonstrates WASI 0.3 interception.
-    *   **`data-processor/`**: A "reactor" component (a long-running service/library) that exports a `process-data` function and tests WASI 0.3 capabilities from an interface, demonstrating that `wrdn` works seamlessly with Reactor Components as well.
-*   **`01-telemetry-allow-all/`**: Demonstrates running `telemetry_demo.wasm` with an "Allow All" Cedar policy.
-*   **`02-telemetry-deny-all/`**: Demonstrates running the same telemetry component, but with a default "Deny All" policy to see how the Warden gracefully blocks unauthorized capability requests (e.g., denying `env_read`).
-*   **`03-telemetry-granular/`**: Demonstrates running the telemetry component with a highly granular policy that explicitly allows certain environment variables (like `APP_ENV`) while denying others.
-*   **`04-reactor-data-processor/`**: Demonstrates running a Reactor Component (`data_processor.wasm`) that exports functions like `processData()`, interacting with it programmatically from Node.js, and using a granular policy that specifically permits reading `SECRET_KEY`.
+To run these examples, you first need to compile the Rust WASM guest components and use `wrdn install` to generate the `.wrdn` boundary interfaces.
 
-## Running the Examples
+We provide a `Makefile` at the root of the repository to automate this.
 
-Ensure you have built the CLI (`wrdn`) and that it is in your `PATH` or available locally. Alternatively, the examples can be run sequentially via the end-to-end test script in the repository root.
+**1. Build the Examples**
+From the root of the repository, run:
+```bash
+make build-examples
+```
+This will compile the Rust guests and install them into the respective example directories.
 
-To run a specific example manually:
+**2. Run an Example**
+Navigate into any example directory and run the Node.js application:
+```bash
+cd 01-telemetry-exfiltration
+node index.js
+```
 
-1.  **Build the Guest WebAssembly modules:**
-    ```bash
-    cd guests/telemetry-demo
-    cargo build --target=wasm32-wasip2 --release
-    
-    cd ../data-processor
-    cargo build --target=wasm32-wasip2 --release
-    ```
+You will see `wrdn` instantly detect and terminate the unauthorized actions (like reading secrets or phoning home) while allowing the application to gracefully crash or continue!
 
-2.  **Navigate to an example scenario:**
-    ```bash
-    cd ../../04-reactor-data-processor
-    ```
-
-3.  **Install the component with `wrdn`:**
-    ```bash
-    # Assuming you built the CLI and the WASM guest
-    cargo run -p wrdn -- install "file://$(pwd)/../guests/data-processor/target/wasm32-wasip2/release/data_processor.wasm"
-    ```
-    *(Note: This creates a `.wrdn/` directory containing the component, the virtualizer, and a `policy.cedar` file)*
-
-4.  **Run the Node.js Host:**
-    ```bash
-    # Execute the host code with WebAssembly JSPI enabled
-    node --experimental-wasm-jspi index.js
-    ```
-
-5.  **Review the Output:**
-    You should see the output of the component's execution, along with `[WARDEN AUDIT]` logs dynamically showing `ALLOW` and `DENY` decisions made by the Cedar policy engine at runtime.
+**3. Run the Automated Test Suite**
+To verify all examples behave correctly against their policies automatically, run the E2E test script from the root of the repository:
+```bash
+make test
+```
