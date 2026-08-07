@@ -21,7 +21,7 @@ fn main() {
         .expect("Failed to build virtualizer crate");
 
     if !status.success() {
-        panic!("Failed to build virtualizer crate");
+        panic!("Failed to build virtualizer crate. Ensure you have the WASM target installed: `rustup target add wasm32-wasip2`");
     }
 
     let wasm_file = PathBuf::from(&target_dir)

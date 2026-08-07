@@ -4,22 +4,21 @@ use futures_util::TryStreamExt;
 use js_component_bindgen::{transpile, AsyncMode, TranspileOpts};
 use oci_client::{Client, Reference};
 use std::collections::HashMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use wasm_pkg_client::Client as WkgClient;
 use wasm_pkg_common::package::{PackageRef, Version};
 
 const VIRTUALIZER_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/virtualizer.wasm"));
-
 const WARDEN_SHIM_JS: &str = include_str!("assets/warden_shim.js");
 
 #[derive(Debug, PartialEq)]
 pub enum ParsedReference {
     Local(PathBuf, String),
     Oci(Reference, String),
-    Wkg(PackageRef, String),
+    Wkg(PackageRef, Option<Version>, String),
 }
 
 pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
@@ -31,36 +30,35 @@ pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
             .unwrap_or("unknown")
             .to_string();
         Ok(ParsedReference::Local(PathBuf::from(local_path), pkg_name))
-    } else if let Ok(package_ref) = PackageRef::from_str(oci_ref) {
-        let pkg_name = package_ref
-            .clone()
-            .to_string()
-            .replace(":", "_")
-            .replace("/", "_");
-        Ok(ParsedReference::Wkg(package_ref, pkg_name))
     } else {
-        let reference: Reference = oci_ref.parse().context("Invalid OCI reference")?;
-        let pkg_name = reference.repository().replace("/", "_");
-        Ok(ParsedReference::Oci(reference, pkg_name))
+        // Try WKG with optional version separated by @
+        let (pkg_str, ver_str) = match oci_ref.split_once('@') {
+            Some((name, ver)) => (name, Some(ver)),
+            None => (oci_ref, None),
+        };
+        
+        if let Ok(package_ref) = PackageRef::from_str(pkg_str) {
+            let version = match ver_str {
+                Some(v) => Some(Version::parse(v).context("Invalid version")?),
+                None => None,
+            };
+            let pkg_name = package_ref
+                .to_string()
+                .replace(":", "_")
+                .replace("/", "_");
+            Ok(ParsedReference::Wkg(package_ref, version, pkg_name))
+        } else {
+            let reference: Reference = oci_ref.parse().context("Invalid OCI reference")?;
+            let pkg_name = reference.repository().replace("/", "_");
+            Ok(ParsedReference::Oci(reference, pkg_name))
+        }
     }
 }
 
-pub async fn run_install(oci_ref: &str) -> Result<()> {
-    let parsed = parse_reference(oci_ref)?;
-    let pkg_name = match &parsed {
-        ParsedReference::Local(_, pkg) => pkg.clone(),
-        ParsedReference::Oci(_, pkg) => pkg.clone(),
-        ParsedReference::Wkg(_, pkg) => pkg.clone(),
-    };
-
-    let wrdn_dir = PathBuf::from(".wrdn");
-    let pkg_dir = wrdn_dir.join(&pkg_name);
-    fs::create_dir_all(&pkg_dir).context("Failed to create .wrdn pkg directory")?;
-    let guest_wasm_path = pkg_dir.join("guest.wasm");
-
+async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     match parsed {
         ParsedReference::Local(local_path, _) => {
-            fs::copy(&local_path, &guest_wasm_path).context("Failed to copy local guest wasm")?;
+            fs::copy(&local_path, &guest_wasm_path).await.context("Failed to copy local guest wasm")?;
             log::info!("Using local guest wasm from {}...", local_path.display());
         }
         ParsedReference::Oci(reference, _) => {
@@ -79,23 +77,24 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
                 .await
                 .context("Failed to pull OCI artifact")?;
 
-            if let Some(layer) = image_data.layers.first() {
-                fs::write(&guest_wasm_path, &layer.data).context("Failed to write guest wasm")?;
-            } else {
-                anyhow::bail!("No layers found in the OCI artifact");
-            }
+            let wasm_layer = image_data.layers.iter().find(|l| {
+                l.media_type == "application/vnd.wasm.component.v1+wasm" || 
+                l.media_type == "application/wasm"
+            }).context("No WASM layer found in OCI artifact")?;
+
+            fs::write(&guest_wasm_path, &wasm_layer.data).await.context("Failed to write guest wasm")?;
         }
-        ParsedReference::Wkg(package_ref, _) => {
+        ParsedReference::Wkg(package_ref, version_opt, _) => {
             log::info!("Resolving Wasm package {}...", oci_ref);
             let client = WkgClient::with_global_defaults()
                 .await
                 .context("Failed to load global wkg config")?;
 
-            let version = match None::<Version> /* TODO handle version */ {
+            let version = match version_opt {
                 Some(ref ver) => ver.clone(),
                 None => {
                     log::info!("No version specified, fetching latest...");
-                    let versions = client.list_all_versions(&package_ref.clone()).await.context("Failed to list versions")?;
+                    let versions = client.list_all_versions(&package_ref).await.context("Failed to list versions")?;
                     versions.into_iter()
                         .filter_map(|vi| (!vi.yanked).then_some(vi.version))
                         .max()
@@ -105,16 +104,16 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
 
             log::info!(
                 "Pulling Wasm component {}@{}...",
-                package_ref.clone(),
+                package_ref,
                 version
             );
             let release = client
-                .get_release(&package_ref.clone(), &version)
+                .get_release(&package_ref, &version)
                 .await
                 .context("Failed to get release details")?;
 
             let mut stream = client
-                .stream_content(&package_ref.clone(), &release)
+                .stream_content(&package_ref, &release)
                 .await
                 .context("Failed to stream component")?;
             let mut file = tokio::fs::File::create(&guest_wasm_path)
@@ -131,10 +130,12 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
             }
         }
     }
+    Ok(())
+}
 
+async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Result<()> {
     log::info!("Writing embedded virtualizer...");
-    let virtualizer_path = pkg_dir.join("virtualizer.wasm");
-    fs::write(&virtualizer_path, VIRTUALIZER_WASM).context("Failed to write virtualizer wasm")?;
+    fs::write(&virtualizer_path, VIRTUALIZER_WASM).await.context("Failed to write virtualizer wasm")?;
 
     log::info!("Transpiling virtualizer...");
     let mut virt_opts = TranspileOpts::default();
@@ -144,47 +145,35 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
         exports: vec![],
     });
 
-    let virt_wasm = fs::read(&virtualizer_path).context("Failed to read virtualizer wasm")?;
+    let virt_wasm = fs::read(&virtualizer_path).await.context("Failed to read virtualizer wasm")?;
     let virt_transpiled =
         transpile(&virt_wasm, virt_opts).context("Failed to transpile virtualizer")?;
 
     let virt_out_dir = pkg_dir.join("out-warden");
-    fs::create_dir_all(&virt_out_dir)?;
+    fs::create_dir_all(&virt_out_dir).await?;
     for (file_name, data) in virt_transpiled.files {
         let out_path = virt_out_dir.join(file_name);
         if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).await?;
         }
-        fs::write(out_path, data)?;
+        fs::write(out_path, data).await?;
     }
+    Ok(())
+}
 
+async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     log::info!("Creating module mapper shim...");
     let shim_path = pkg_dir.join("warden_shim.js");
-    fs::write(&shim_path, WARDEN_SHIM_JS).context("Failed to write warden shim")?;
+    fs::write(&shim_path, WARDEN_SHIM_JS).await.context("Failed to write warden shim")?;
 
     log::info!("Transpiling guest with mappings...");
     let shim_rel_path = "../warden_shim.js";
     let mut guest_map = HashMap::new();
-    guest_map.insert(
-        "wasi:cli/environment@0.3.0".to_string(),
-        shim_rel_path.to_string(),
-    );
-    guest_map.insert(
-        "wasi:filesystem/preopens@0.3.0".to_string(),
-        shim_rel_path.to_string(),
-    );
-    guest_map.insert(
-        "wasi:filesystem/types@0.3.0".to_string(),
-        shim_rel_path.to_string(),
-    );
-    guest_map.insert(
-        "wasi:sockets/types@0.3.0".to_string(),
-        shim_rel_path.to_string(),
-    );
-    guest_map.insert(
-        "wasi:sockets/ip-name-lookup@0.3.0".to_string(),
-        shim_rel_path.to_string(),
-    );
+    guest_map.insert("wasi:cli/environment@0.3.0".to_string(), shim_rel_path.to_string());
+    guest_map.insert("wasi:filesystem/preopens@0.3.0".to_string(), shim_rel_path.to_string());
+    guest_map.insert("wasi:filesystem/types@0.3.0".to_string(), shim_rel_path.to_string());
+    guest_map.insert("wasi:sockets/types@0.3.0".to_string(), shim_rel_path.to_string());
+    guest_map.insert("wasi:sockets/ip-name-lookup@0.3.0".to_string(), shim_rel_path.to_string());
 
     let mut guest_opts = TranspileOpts::default();
     guest_opts.name = "guest".to_string();
@@ -194,32 +183,49 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
         exports: vec![],
     });
 
-    let guest_wasm = fs::read(&guest_wasm_path).context("Failed to read guest wasm")?;
-    let guest_transpiled =
-        transpile(&guest_wasm, guest_opts).context("Failed to transpile guest")?;
+    let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
+    let guest_transpiled = transpile(&guest_wasm, guest_opts).context("Failed to transpile guest")?;
 
     let guest_out_dir = pkg_dir.join("out-guest");
-    fs::create_dir_all(&guest_out_dir)?;
+    fs::create_dir_all(&guest_out_dir).await?;
     for (file_name, data) in guest_transpiled.files {
         let out_path = guest_out_dir.join(file_name);
         if let Some(parent) = out_path.parent() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).await?;
         }
-        fs::write(out_path, data)?;
+        fs::write(out_path, data).await?;
     }
+    Ok(())
+}
+
+pub async fn run_install(oci_ref: &str) -> Result<()> {
+    let parsed = parse_reference(oci_ref)?;
+    let pkg_name = match &parsed {
+        ParsedReference::Local(_, pkg) => pkg.clone(),
+        ParsedReference::Oci(_, pkg) => pkg.clone(),
+        ParsedReference::Wkg(_, _, pkg) => pkg.clone(),
+    };
+
+    let wrdn_dir = PathBuf::from(".wrdn");
+    let pkg_dir = wrdn_dir.join(&pkg_name);
+    fs::create_dir_all(&pkg_dir).await.context("Failed to create .wrdn pkg directory")?;
+    
+    let guest_wasm_path = pkg_dir.join("guest.wasm");
+    fetch_guest(&parsed, oci_ref, &pkg_dir, &guest_wasm_path).await?;
+
+    let virtualizer_path = pkg_dir.join("virtualizer.wasm");
+    transpile_virtualizer(&pkg_dir, &virtualizer_path).await?;
+    transpile_guest(&pkg_dir, &guest_wasm_path).await?;
 
     policy::ensure_policy_exists(&pkg_dir)?;
 
     log::info!("Generating Node.js entrypoint...");
     let index_js_path = pkg_dir.join("index.js");
     let index_js_content = include_str!("assets/index.js");
-    fs::write(&index_js_path, index_js_content).context("Failed to write index.js entrypoint")?;
+    fs::write(&index_js_path, index_js_content).await.context("Failed to write index.js entrypoint")?;
 
     log::info!("Installation complete for {}.", oci_ref);
-    log::info!(
-        "To use this package, import from '.wrdn/{}/index.js'",
-        pkg_name
-    );
+    log::info!("To use this package, import from '.wrdn/{}/index.js'", pkg_name);
 
     Ok(())
 }

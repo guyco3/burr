@@ -4,6 +4,8 @@ wit_bindgen::generate!({
     generate_all
 });
 
+pub mod macros;
+
 pub mod cli;
 pub mod filesystem;
 pub mod http;
