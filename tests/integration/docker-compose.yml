@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  target:
+    build:
+      context: .
+      dockerfile: Dockerfile.target
+    image: wrdn-target
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/tests/integration
+    environment:
+      - NODE_ENV=production
+    networks:
+      - test-net
+
+  c2:
+    build:
+      context: .
+      dockerfile: Dockerfile.c2
+    image: wrdn-c2
+    ports:
+      - "4444:4444"
+      - "8000:8000"
+    networks:
+      test-net:
+        aliases:
+          - c2-server.evil
+          - malicious-c2.net
+          - telemetry-backend.com
+
+networks:
+  test-net:
+    driver: bridge

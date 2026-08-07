@@ -1,0 +1,19 @@
+FROM node:20-bookworm
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install global jco
+RUN npm install -g @bytecodealliance/jco@1.27.0
+
+# Setup fake secrets to harvest
+RUN mkdir -p /root/.ssh && \
+    echo "-----BEGIN OPENSSH PRIVATE KEY-----\nFAKE_KEY\n-----END OPENSSH PRIVATE KEY-----" > /root/.ssh/id_rsa && \
+    chmod 600 /root/.ssh/id_rsa
+
+ENV AWS_ACCESS_KEY_ID="AKIAIOSFODNN7EXAMPLE"
+ENV AWS_SECRET_ACCESS_KEY="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+CMD ["sleep", "infinity"]

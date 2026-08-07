@@ -1,9 +1,0 @@
-[package]
-name = "env_analyzer"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-wit-bindgen = "0.60.0"
-[lib]
-crate-type = ["cdylib"]
