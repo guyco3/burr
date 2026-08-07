@@ -29,3 +29,13 @@ To verify all examples behave correctly against their policies automatically, ru
 ```bash
 make test
 ```
+
+## Makefile Targets
+
+To make working with this repository easier, we provide a root `Makefile` with the following targets:
+
+- `make build`: Builds the `wrdn` CLI (`cargo build -p wrdn --release`).
+- `make build-guests`: Compiles all the Rust WASM guests in `examples/guests/`.
+- `make build-examples`: Runs `wrdn install` for each example to generate the `.wrdn` directories so users can run `node index.js`.
+- `make test`: Executes the E2E test suite to verify the policy engine blocks all malicious actions.
+- `make clean`: Removes all generated `target/` and `.wrdn/` directories.

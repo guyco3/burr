@@ -19,7 +19,14 @@ The `examples/` directory demonstrates how `wrdn` neutralizes four realistic sup
 
 To run the examples and see `wrdn` intercept the supply chain attacks in real-time, you first need to compile the malicious guest components and generate the `.wrdn` boundaries.
 
-We provide a convenient `Makefile` target to handle this for you:
+We provide a root `Makefile` to simplify building and testing:
+- `make build`: Builds the `wrdn` CLI (`cargo build -p wrdn --release`).
+- `make build-guests`: Compiles all the Rust WASM guests in `examples/guests/`.
+- `make build-examples`: Runs `wrdn install` for each example to generate the `.wrdn` directories so users can run `node index.js`.
+- `make test`: Executes the E2E test suite to verify the policy engine blocks all malicious actions.
+- `make clean`: Removes all generated `target/` and `.wrdn/` directories.
+
+To quickly build the examples:
 ```bash
 make build-examples
 ```
