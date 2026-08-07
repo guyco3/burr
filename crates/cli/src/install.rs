@@ -76,7 +76,7 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let status = Command::new("npx")
         .args(&[
             "-p", "@bytecodealliance/jco@1.27.0",
-            "jco", "transpile",
+            "jco", "transpile", "-q",
             virtualizer_path.to_str().unwrap(),
             "-o", pkg_dir.join("out-warden").to_str().unwrap(),
             "--async-mode", "jspi",
@@ -97,7 +97,7 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let status = Command::new("npx")
         .args(&[
             "-p", "@bytecodealliance/jco@1.27.0",
-            "jco", "transpile",
+            "jco", "transpile", "-q",
             guest_wasm_path.to_str().unwrap(),
             "-o", pkg_dir.join("out-guest").to_str().unwrap(),
             "--map", &format!("wasi:cli/environment@0.3.0={}", shim_rel_path),
