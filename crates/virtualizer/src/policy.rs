@@ -75,7 +75,7 @@ impl PolicyEngine {
             EntityId::from_str(&self.principal_id).unwrap(),
         );
 
-        let (action_str, resource_str, mut ctx_map) = match action_req {
+        let (action_str, resource_str, ctx_map) = match action_req {
             Action::EnvRead(key) => {
                 let mut map = HashMap::new();
                 map.insert(
