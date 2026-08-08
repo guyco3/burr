@@ -3956,6 +3956,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a301904d6657d6364c758d869e5389d05d393b16d5b65db60b4f03cbe71bb80d"
 dependencies = [
  "bitflags 2.13.1",
+ "futures",
  "wit-bindgen-rust-macro",
 ]
 

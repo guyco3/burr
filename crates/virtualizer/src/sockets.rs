@@ -17,17 +17,8 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         Ok(TcpSocket::new(ProxyTcpSocket { inner }))
     }
     fn bind(&self, local_address: IpSocketAddress) -> Result<(), ErrorCode> {
-        let ip_str = match &local_address {
-            IpSocketAddress::Ipv4(v4) => format!(
-                "{}.{}.{}.{}",
-                v4.address.0, v4.address.1, v4.address.2, v4.address.3
-            ),
-            IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
-        };
-        let port = match &local_address {
-            IpSocketAddress::Ipv4(v4) => v4.port,
-            IpSocketAddress::Ipv6(v6) => v6.port,
-        };
+        let (ip_str, port) = format_ip_port(&local_address);
+
         authorize_and_execute(
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
@@ -39,17 +30,8 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         )?
     }
     async fn connect(&self, remote_address: IpSocketAddress) -> Result<(), ErrorCode> {
-        let ip_str = match &remote_address {
-            IpSocketAddress::Ipv4(v4) => format!(
-                "{}.{}.{}.{}",
-                v4.address.0, v4.address.1, v4.address.2, v4.address.3
-            ),
-            IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
-        };
-        let port = match &remote_address {
-            IpSocketAddress::Ipv4(v4) => v4.port,
-            IpSocketAddress::Ipv6(v6) => v6.port,
-        };
+        let (ip_str, port) = format_ip_port(&remote_address);
+
         authorize_and_execute(
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
@@ -62,13 +44,54 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         .await
     }
     fn listen(&self) -> Result<wit_bindgen::rt::async_support::StreamReader<TcpSocket>, ErrorCode> {
-        unsafe { std::mem::transmute(self.inner.listen()) }
+        // 1. Get the host stream (no transmute!)
+        let mut host_stream = self.inner.listen()?;
+
+        // 2. Create a new stream pair for the guest using the explicit Component Model async APIs.
+        let (mut guest_writer, guest_reader) = crate::wit_stream::new::<TcpSocket>();
+
+        // 3. Spawn a background task to map the resources on the fly
+        wit_bindgen::rt::async_support::spawn_local(async move {
+            let mut read_buf = Vec::new();
+            
+            // Continuously read from the host stream
+            loop {
+                // Await the StreamRead future, providing a buffer for it to write into.
+                read_buf.clear();
+                // wit-bindgen stream.read expects a Vec and returns (StreamResult, Vec)
+                let (status, mut host_sockets) = host_stream.read(read_buf).await; 
+                
+                // Process any sockets that were successfully read in this tick
+                for host_socket in host_sockets.drain(..) {
+                    let proxy_socket = ProxyTcpSocket { inner: host_socket };
+                    
+                    // Write it to the guest stream. 
+                    let (write_status, _) = guest_writer.write(vec![TcpSocket::new(proxy_socket)]).await;
+                    if matches!(write_status, wit_bindgen::rt::async_support::StreamResult::Dropped) {
+                        return; // Guest closed their end of the stream, terminate task
+                    }
+                }
+
+                // If the stream was gracefully closed or errored on the host side, stop polling.
+                match status {
+                    wit_bindgen::rt::async_support::StreamResult::Dropped |
+                    wit_bindgen::rt::async_support::StreamResult::Cancelled => break,
+                    wit_bindgen::rt::async_support::StreamResult::Complete(_) => {
+                        read_buf = host_sockets; // Recycle the buffer
+                        continue;
+                    },
+                }
+            }
+        });
+
+        // 4. Yield the reader to the guest
+        Ok(guest_reader)
     }
     fn send(
         &self,
         data: wit_bindgen::rt::async_support::StreamReader<u8>,
     ) -> wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>> {
-        unsafe { std::mem::transmute(self.inner.send(data)) }
+        self.inner.send(data)
     }
     fn receive(
         &self,
@@ -76,8 +99,7 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         wit_bindgen::rt::async_support::StreamReader<u8>,
         wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>>,
     ) {
-        let (s, f) = self.inner.receive();
-        (unsafe { std::mem::transmute(s) }, unsafe { std::mem::transmute(f) })
+        self.inner.receive()
     }
     fn get_local_address(&self) -> Result<IpSocketAddress, ErrorCode> {
         self.inner.get_local_address().map(|a| a)
@@ -148,17 +170,8 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
         Ok(UdpSocket::new(ProxyUdpSocket { inner }))
     }
     fn bind(&self, local_address: IpSocketAddress) -> Result<(), ErrorCode> {
-        let ip_str = match &local_address {
-            IpSocketAddress::Ipv4(v4) => format!(
-                "{}.{}.{}.{}",
-                v4.address.0, v4.address.1, v4.address.2, v4.address.3
-            ),
-            IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
-        };
-        let port = match &local_address {
-            IpSocketAddress::Ipv4(v4) => v4.port,
-            IpSocketAddress::Ipv6(v6) => v6.port,
-        };
+        let (ip_str, port) = format_ip_port(&local_address);
+
         authorize_and_execute(
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
@@ -170,17 +183,8 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
         )?
     }
     fn connect(&self, remote_address: IpSocketAddress) -> Result<(), ErrorCode> {
-        let ip_str = match &remote_address {
-            IpSocketAddress::Ipv4(v4) => format!(
-                "{}.{}.{}.{}",
-                v4.address.0, v4.address.1, v4.address.2, v4.address.3
-            ),
-            IpSocketAddress::Ipv6(v6) => format!("{:?}", v6.address),
-        };
-        let port = match &remote_address {
-            IpSocketAddress::Ipv4(v4) => v4.port,
-            IpSocketAddress::Ipv6(v6) => v6.port,
-        };
+        let (ip_str, port) = format_ip_port(&remote_address);
+
         authorize_and_execute(
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
@@ -262,5 +266,51 @@ impl ip_name_lookup::Guest for VirtualizationProxy {
             },
         )?
         .await
+    }
+}
+
+pub(crate) fn format_ip_port(addr: &IpSocketAddress) -> (String, u16) {
+    match addr {
+        IpSocketAddress::Ipv4(v4) => (
+            format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
+            v4.port,
+        ),
+        IpSocketAddress::Ipv6(v6) => (
+            format!(
+                "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
+                v6.address.0, v6.address.1, v6.address.2, v6.address.3,
+                v6.address.4, v6.address.5, v6.address.6, v6.address.7
+            ),
+            v6.port,
+        ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_ip_port_ipv4() {
+        let addr = IpSocketAddress::Ipv4(Ipv4SocketAddress {
+            address: (192, 168, 1, 1),
+            port: 443,
+        });
+        let (ip, port) = format_ip_port(&addr);
+        assert_eq!(ip, "192.168.1.1");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_format_ip_port_ipv6() {
+        let addr = IpSocketAddress::Ipv6(Ipv6SocketAddress {
+            address: (0x2001, 0x0db8, 0, 0, 0, 0, 0, 1),
+            port: 80,
+            flow_info: 0,
+            scope_id: 0,
+        });
+        let (ip, port) = format_ip_port(&addr);
+        assert_eq!(ip, "2001:db8:0:0:0:0:0:1");
+        assert_eq!(port, 80);
     }
 }
