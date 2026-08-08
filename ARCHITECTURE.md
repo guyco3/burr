@@ -49,3 +49,6 @@ The Virtualizer operates on a default-deny architecture powered by [Cedar Policy
 To ensure maximum reliability, the `PolicyEngine` (located in `crates/virtualizer/src/policy.rs`) is decoupled from the runtime environment.
 - **Production (`PolicyEngine::from_env`)**: At runtime, the CLI extracts the guest package name and loads the corresponding `policy.cedar` file from the `.wrdn/` directory.
 - **Testing (`PolicyEngine::new`)**: The engine is instantiated entirely in-memory by injecting the schema string and mock policy strings directly. This permits high-speed unit testing of the exact context mappings (e.g., verifying that a specific IP address correctly fails authorization) without any filesystem I/O or brittle test setups.
+
+### Stream Interception & WASI 0.3 Compatibility
+The virtualization proxy flawlessly intercepts native WASI 0.3 asynchronous streams (like `listen()` on `TcpSocket`) without resorting to unsafe memory mapping or transmutes. It uses `wit-bindgen 0.60`'s built-in `spawn_local` and handles `StreamResult` (Complete, Dropped, Cancelled) dynamically. This ensures that any `wasi:sockets` component-model resources are proxied smoothly and securely in the Wasm sandbox context.
