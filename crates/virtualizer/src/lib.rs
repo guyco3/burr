@@ -1,7 +1,8 @@
 wit_bindgen::generate!({
     world: "proxy",
     path: "wit",
-    generate_all
+    generate_all,
+    merge_structurally_equal_types: true
 });
 
 pub mod macros;

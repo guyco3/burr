@@ -6,245 +6,16 @@
 /// (e.g. `StreamReader`, `FutureReader`, `TcpSocket`) between the `wasi` host and `exports::wasi` guest namespaces.
 /// Because these handles are fundamentally just integers (resource IDs) pointing to the same WASM engine tables, 
 /// transmuting them avoids inserting unnecessary and highly-costly async interception layers.
-#[inline(always)]
-fn transmute_opaque_handle<T, U>(handle: T) -> U {
-    unsafe { std::mem::transmute_copy(&handle) }
-}
-impl From<crate::wasi::filesystem::types::ErrorCode> for crate::exports::wasi::filesystem::types::ErrorCode {
-    fn from(v: crate::wasi::filesystem::types::ErrorCode) -> Self {
-        match v {
-            crate::wasi::filesystem::types::ErrorCode::Access => Self::Access,
-            crate::wasi::filesystem::types::ErrorCode::Already => Self::Already,
-            crate::wasi::filesystem::types::ErrorCode::BadDescriptor => Self::BadDescriptor,
-            crate::wasi::filesystem::types::ErrorCode::Busy => Self::Busy,
-            crate::wasi::filesystem::types::ErrorCode::Deadlock => Self::Deadlock,
-            crate::wasi::filesystem::types::ErrorCode::Quota => Self::Quota,
-            crate::wasi::filesystem::types::ErrorCode::Exist => Self::Exist,
-            crate::wasi::filesystem::types::ErrorCode::FileTooLarge => Self::FileTooLarge,
-            crate::wasi::filesystem::types::ErrorCode::IllegalByteSequence => Self::IllegalByteSequence,
-            crate::wasi::filesystem::types::ErrorCode::InProgress => Self::InProgress,
-            crate::wasi::filesystem::types::ErrorCode::Interrupted => Self::Interrupted,
-            crate::wasi::filesystem::types::ErrorCode::Invalid => Self::Invalid,
-            crate::wasi::filesystem::types::ErrorCode::Io => Self::Io,
-            crate::wasi::filesystem::types::ErrorCode::IsDirectory => Self::IsDirectory,
-            crate::wasi::filesystem::types::ErrorCode::Loop => Self::Loop,
-            crate::wasi::filesystem::types::ErrorCode::TooManyLinks => Self::TooManyLinks,
-            crate::wasi::filesystem::types::ErrorCode::MessageSize => Self::MessageSize,
-            crate::wasi::filesystem::types::ErrorCode::NameTooLong => Self::NameTooLong,
-            crate::wasi::filesystem::types::ErrorCode::NoDevice => Self::NoDevice,
-            crate::wasi::filesystem::types::ErrorCode::NoEntry => Self::NoEntry,
-            crate::wasi::filesystem::types::ErrorCode::NoLock => Self::NoLock,
-            crate::wasi::filesystem::types::ErrorCode::InsufficientMemory => Self::InsufficientMemory,
-            crate::wasi::filesystem::types::ErrorCode::InsufficientSpace => Self::InsufficientSpace,
-            crate::wasi::filesystem::types::ErrorCode::NotDirectory => Self::NotDirectory,
-            crate::wasi::filesystem::types::ErrorCode::NotEmpty => Self::NotEmpty,
-            crate::wasi::filesystem::types::ErrorCode::NotRecoverable => Self::NotRecoverable,
-            crate::wasi::filesystem::types::ErrorCode::Unsupported => Self::Unsupported,
-            crate::wasi::filesystem::types::ErrorCode::NoTty => Self::NoTty,
-            crate::wasi::filesystem::types::ErrorCode::NoSuchDevice => Self::NoSuchDevice,
-            crate::wasi::filesystem::types::ErrorCode::Overflow => Self::Overflow,
-            crate::wasi::filesystem::types::ErrorCode::NotPermitted => Self::NotPermitted,
-            crate::wasi::filesystem::types::ErrorCode::Pipe => Self::Pipe,
-            crate::wasi::filesystem::types::ErrorCode::ReadOnly => Self::ReadOnly,
-            crate::wasi::filesystem::types::ErrorCode::InvalidSeek => Self::InvalidSeek,
-            crate::wasi::filesystem::types::ErrorCode::TextFileBusy => Self::TextFileBusy,
-            crate::wasi::filesystem::types::ErrorCode::CrossDevice => Self::CrossDevice,
-            crate::wasi::filesystem::types::ErrorCode::Other(inner) => Self::Other(inner),
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::ErrorCode> for crate::wasi::filesystem::types::ErrorCode {
-    fn from(v: crate::exports::wasi::filesystem::types::ErrorCode) -> Self {
-        match v {
-            crate::exports::wasi::filesystem::types::ErrorCode::Access => Self::Access,
-            crate::exports::wasi::filesystem::types::ErrorCode::Already => Self::Already,
-            crate::exports::wasi::filesystem::types::ErrorCode::BadDescriptor => Self::BadDescriptor,
-            crate::exports::wasi::filesystem::types::ErrorCode::Busy => Self::Busy,
-            crate::exports::wasi::filesystem::types::ErrorCode::Deadlock => Self::Deadlock,
-            crate::exports::wasi::filesystem::types::ErrorCode::Quota => Self::Quota,
-            crate::exports::wasi::filesystem::types::ErrorCode::Exist => Self::Exist,
-            crate::exports::wasi::filesystem::types::ErrorCode::FileTooLarge => Self::FileTooLarge,
-            crate::exports::wasi::filesystem::types::ErrorCode::IllegalByteSequence => Self::IllegalByteSequence,
-            crate::exports::wasi::filesystem::types::ErrorCode::InProgress => Self::InProgress,
-            crate::exports::wasi::filesystem::types::ErrorCode::Interrupted => Self::Interrupted,
-            crate::exports::wasi::filesystem::types::ErrorCode::Invalid => Self::Invalid,
-            crate::exports::wasi::filesystem::types::ErrorCode::Io => Self::Io,
-            crate::exports::wasi::filesystem::types::ErrorCode::IsDirectory => Self::IsDirectory,
-            crate::exports::wasi::filesystem::types::ErrorCode::Loop => Self::Loop,
-            crate::exports::wasi::filesystem::types::ErrorCode::TooManyLinks => Self::TooManyLinks,
-            crate::exports::wasi::filesystem::types::ErrorCode::MessageSize => Self::MessageSize,
-            crate::exports::wasi::filesystem::types::ErrorCode::NameTooLong => Self::NameTooLong,
-            crate::exports::wasi::filesystem::types::ErrorCode::NoDevice => Self::NoDevice,
-            crate::exports::wasi::filesystem::types::ErrorCode::NoEntry => Self::NoEntry,
-            crate::exports::wasi::filesystem::types::ErrorCode::NoLock => Self::NoLock,
-            crate::exports::wasi::filesystem::types::ErrorCode::InsufficientMemory => Self::InsufficientMemory,
-            crate::exports::wasi::filesystem::types::ErrorCode::InsufficientSpace => Self::InsufficientSpace,
-            crate::exports::wasi::filesystem::types::ErrorCode::NotDirectory => Self::NotDirectory,
-            crate::exports::wasi::filesystem::types::ErrorCode::NotEmpty => Self::NotEmpty,
-            crate::exports::wasi::filesystem::types::ErrorCode::NotRecoverable => Self::NotRecoverable,
-            crate::exports::wasi::filesystem::types::ErrorCode::Unsupported => Self::Unsupported,
-            crate::exports::wasi::filesystem::types::ErrorCode::NoTty => Self::NoTty,
-            crate::exports::wasi::filesystem::types::ErrorCode::NoSuchDevice => Self::NoSuchDevice,
-            crate::exports::wasi::filesystem::types::ErrorCode::Overflow => Self::Overflow,
-            crate::exports::wasi::filesystem::types::ErrorCode::NotPermitted => Self::NotPermitted,
-            crate::exports::wasi::filesystem::types::ErrorCode::Pipe => Self::Pipe,
-            crate::exports::wasi::filesystem::types::ErrorCode::ReadOnly => Self::ReadOnly,
-            crate::exports::wasi::filesystem::types::ErrorCode::InvalidSeek => Self::InvalidSeek,
-            crate::exports::wasi::filesystem::types::ErrorCode::TextFileBusy => Self::TextFileBusy,
-            crate::exports::wasi::filesystem::types::ErrorCode::CrossDevice => Self::CrossDevice,
-            crate::exports::wasi::filesystem::types::ErrorCode::Other(inner) => Self::Other(inner),
-        }
-    }
-}
-impl From<crate::wasi::filesystem::types::DescriptorType> for crate::exports::wasi::filesystem::types::DescriptorType {
-    fn from(v: crate::wasi::filesystem::types::DescriptorType) -> Self {
-        match v {
-            crate::wasi::filesystem::types::DescriptorType::BlockDevice => Self::BlockDevice,
-            crate::wasi::filesystem::types::DescriptorType::CharacterDevice => Self::CharacterDevice,
-            crate::wasi::filesystem::types::DescriptorType::Directory => Self::Directory,
-            crate::wasi::filesystem::types::DescriptorType::Fifo => Self::Fifo,
-            crate::wasi::filesystem::types::DescriptorType::SymbolicLink => Self::SymbolicLink,
-            crate::wasi::filesystem::types::DescriptorType::RegularFile => Self::RegularFile,
-            crate::wasi::filesystem::types::DescriptorType::Socket => Self::Socket,
-            crate::wasi::filesystem::types::DescriptorType::Other(inner) => Self::Other(inner),
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::DescriptorType> for crate::wasi::filesystem::types::DescriptorType {
-    fn from(v: crate::exports::wasi::filesystem::types::DescriptorType) -> Self {
-        match v {
-            crate::exports::wasi::filesystem::types::DescriptorType::BlockDevice => Self::BlockDevice,
-            crate::exports::wasi::filesystem::types::DescriptorType::CharacterDevice => Self::CharacterDevice,
-            crate::exports::wasi::filesystem::types::DescriptorType::Directory => Self::Directory,
-            crate::exports::wasi::filesystem::types::DescriptorType::Fifo => Self::Fifo,
-            crate::exports::wasi::filesystem::types::DescriptorType::SymbolicLink => Self::SymbolicLink,
-            crate::exports::wasi::filesystem::types::DescriptorType::RegularFile => Self::RegularFile,
-            crate::exports::wasi::filesystem::types::DescriptorType::Socket => Self::Socket,
-            crate::exports::wasi::filesystem::types::DescriptorType::Other(inner) => Self::Other(inner),
-        }
-    }
-}
-impl From<crate::wasi::filesystem::types::Advice> for crate::exports::wasi::filesystem::types::Advice {
-    fn from(v: crate::wasi::filesystem::types::Advice) -> Self {
-        match v {
-            crate::wasi::filesystem::types::Advice::Normal => Self::Normal,
-            crate::wasi::filesystem::types::Advice::Sequential => Self::Sequential,
-            crate::wasi::filesystem::types::Advice::Random => Self::Random,
-            crate::wasi::filesystem::types::Advice::WillNeed => Self::WillNeed,
-            crate::wasi::filesystem::types::Advice::DontNeed => Self::DontNeed,
-            crate::wasi::filesystem::types::Advice::NoReuse => Self::NoReuse,
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::Advice> for crate::wasi::filesystem::types::Advice {
-    fn from(v: crate::exports::wasi::filesystem::types::Advice) -> Self {
-        match v {
-            crate::exports::wasi::filesystem::types::Advice::Normal => Self::Normal,
-            crate::exports::wasi::filesystem::types::Advice::Sequential => Self::Sequential,
-            crate::exports::wasi::filesystem::types::Advice::Random => Self::Random,
-            crate::exports::wasi::filesystem::types::Advice::WillNeed => Self::WillNeed,
-            crate::exports::wasi::filesystem::types::Advice::DontNeed => Self::DontNeed,
-            crate::exports::wasi::filesystem::types::Advice::NoReuse => Self::NoReuse,
-        }
-    }
-}
 
-impl From<crate::wasi::filesystem::types::NewTimestamp> for crate::exports::wasi::filesystem::types::NewTimestamp {
-    fn from(value: crate::wasi::filesystem::types::NewTimestamp) -> Self {
-        match value {
-            crate::wasi::filesystem::types::NewTimestamp::NoChange => Self::NoChange,
-            crate::wasi::filesystem::types::NewTimestamp::Now => Self::Now,
-            crate::wasi::filesystem::types::NewTimestamp::Timestamp(t) => Self::Timestamp(t),
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::NewTimestamp> for crate::wasi::filesystem::types::NewTimestamp {
-    fn from(value: crate::exports::wasi::filesystem::types::NewTimestamp) -> Self {
-        match value {
-            crate::exports::wasi::filesystem::types::NewTimestamp::NoChange => Self::NoChange,
-            crate::exports::wasi::filesystem::types::NewTimestamp::Now => Self::Now,
-            crate::exports::wasi::filesystem::types::NewTimestamp::Timestamp(t) => Self::Timestamp(t),
-        }
-    }
-}
 
-macro_rules! bidirectional_bitflag {
-    ($host:ty, $guest:ty) => {
-        impl From<$host> for $guest {
-            fn from(value: $host) -> Self {
-                Self::from_bits_retain(value.bits())
-            }
-        }
-        impl From<$guest> for $host {
-            fn from(value: $guest) -> Self {
-                Self::from_bits_retain(value.bits())
-            }
-        }
-    };
-}
 
-bidirectional_bitflag!(crate::wasi::filesystem::types::DescriptorFlags, crate::exports::wasi::filesystem::types::DescriptorFlags);
-bidirectional_bitflag!(crate::wasi::filesystem::types::PathFlags, crate::exports::wasi::filesystem::types::PathFlags);
-bidirectional_bitflag!(crate::wasi::filesystem::types::OpenFlags, crate::exports::wasi::filesystem::types::OpenFlags);
 
-impl From<crate::wasi::filesystem::types::DescriptorStat> for crate::exports::wasi::filesystem::types::DescriptorStat {
-    fn from(value: crate::wasi::filesystem::types::DescriptorStat) -> Self {
-        Self {
-            type_: value.type_.into(),
-            link_count: value.link_count,
-            size: value.size,
-            data_access_timestamp: value.data_access_timestamp,
-            data_modification_timestamp: value.data_modification_timestamp,
-            status_change_timestamp: value.status_change_timestamp,
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::DescriptorStat> for crate::wasi::filesystem::types::DescriptorStat {
-    fn from(value: crate::exports::wasi::filesystem::types::DescriptorStat) -> Self {
-        Self {
-            type_: value.type_.into(),
-            link_count: value.link_count,
-            size: value.size,
-            data_access_timestamp: value.data_access_timestamp,
-            data_modification_timestamp: value.data_modification_timestamp,
-            status_change_timestamp: value.status_change_timestamp,
-        }
-    }
-}
 
-impl From<crate::wasi::filesystem::types::DirectoryEntry> for crate::exports::wasi::filesystem::types::DirectoryEntry {
-    fn from(value: crate::wasi::filesystem::types::DirectoryEntry) -> Self {
-        Self {
-            type_: value.type_.into(),
-            name: value.name,
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::DirectoryEntry> for crate::wasi::filesystem::types::DirectoryEntry {
-    fn from(value: crate::exports::wasi::filesystem::types::DirectoryEntry) -> Self {
-        Self {
-            type_: value.type_.into(),
-            name: value.name,
-        }
-    }
-}
 
-impl From<crate::wasi::filesystem::types::MetadataHashValue> for crate::exports::wasi::filesystem::types::MetadataHashValue {
-    fn from(value: crate::wasi::filesystem::types::MetadataHashValue) -> Self {
-        Self {
-            lower: value.lower,
-            upper: value.upper,
-        }
-    }
-}
-impl From<crate::exports::wasi::filesystem::types::MetadataHashValue> for crate::wasi::filesystem::types::MetadataHashValue {
-    fn from(value: crate::exports::wasi::filesystem::types::MetadataHashValue) -> Self {
-        Self {
-            lower: value.lower,
-            upper: value.upper,
-        }
-    }
-}
+
+
+
+
 
 use crate::exports::wasi::filesystem::preopens;
 use crate::exports::wasi::filesystem::types;
@@ -263,7 +34,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         wit_bindgen::rt::async_support::StreamReader<u8>,
         wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>>,
     ) {
-        transmute_opaque_handle(self.inner.read_via_stream(offset))
+        unsafe { std::mem::transmute(self.inner.read_via_stream(offset)) }
     }
     fn write_via_stream(
         &self,
@@ -287,7 +58,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         let res: Result<(), ErrorCode> = unsafe {
             std::mem::transmute(
                 self.inner
-                    .advise(offset, length, advice.into())
+                    .advise(offset, length, advice)
                     .await,
             )
         };
@@ -295,20 +66,20 @@ impl types::GuestDescriptor for ProxyDescriptor {
     }
     async fn sync_data(&self) -> Result<(), ErrorCode> {
         let res: Result<(), ErrorCode> =
-            self.inner.sync_data().await.map_err(Into::into);
+            self.inner.sync_data().await;
         res
     }
 
     async fn get_flags(&self) -> Result<DescriptorFlags, ErrorCode> {
-        self.inner.get_flags().await.map(|f| f.into()).map_err(Into::into)
+        self.inner.get_flags().await
     }
     async fn get_type(&self) -> Result<DescriptorType, ErrorCode> {
         let res: Result<DescriptorType, ErrorCode> =
-            self.inner.get_type().await.map(|t| t.into()).map_err(Into::into);
+            self.inner.get_type().await;
         res
     }
     async fn set_size(&self, size: Filesize) -> Result<(), ErrorCode> {
-        self.inner.set_size(size).await.map_err(Into::into)
+        self.inner.set_size(size).await
     }
     async fn set_times(
         &self,
@@ -319,8 +90,8 @@ impl types::GuestDescriptor for ProxyDescriptor {
             std::mem::transmute(
                 self.inner
                     .set_times(
-                        data_access_timestamp.into(),
-                        data_modification_timestamp.into(),
+                        data_access_timestamp,
+                        data_modification_timestamp,
                     )
                     .await,
             )
@@ -333,21 +104,21 @@ impl types::GuestDescriptor for ProxyDescriptor {
         wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>>,
     ) {
         let (s, f) = self.inner.read_directory();
-        (transmute_opaque_handle(s), transmute_opaque_handle(f))
+        (unsafe { std::mem::transmute(s) }, unsafe { std::mem::transmute(f) })
     }
     async fn sync(&self) -> Result<(), ErrorCode> {
-        self.inner.sync().await.map_err(Into::into)
+        self.inner.sync().await
     }
     async fn create_directory_at(&self, path: String) -> Result<(), ErrorCode> {
         authorize_and_execute(
             &[Action::FsWrite(path.clone())],
             || ErrorCode::Access,
-            || async { self.inner.create_directory_at(path).await.map_err(Into::into) },
+            || async { self.inner.create_directory_at(path).await },
         )?
         .await
     }
     async fn stat(&self) -> Result<DescriptorStat, ErrorCode> {
-        self.inner.stat().await.map(|s| s.into()).map_err(Into::into)
+        self.inner.stat().await
     }
     async fn stat_at(
         &self,
@@ -361,7 +132,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
                 unsafe {
                     std::mem::transmute(
                         self.inner
-                            .stat_at(path_flags.into(), path)
+                            .stat_at(path_flags, path)
                             .await,
                     )
                 }
@@ -384,10 +155,10 @@ impl types::GuestDescriptor for ProxyDescriptor {
                     std::mem::transmute(
                         self.inner
                             .set_times_at(
-                                path_flags.into(),
+                                path_flags,
                                 path,
-                                data_access_timestamp.into(),
-                                data_modification_timestamp.into(),
+                                data_access_timestamp,
+                                data_modification_timestamp,
                             )
                             .await,
                     )
@@ -414,7 +185,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
                     std::mem::transmute(
                         self.inner
                             .link_at(
-                                old_path_flags.into(),
+                                old_path_flags,
                                 old_path,
                                 &new_descriptor.get::<ProxyDescriptor>().inner,
                                 new_path,
@@ -440,10 +211,10 @@ impl types::GuestDescriptor for ProxyDescriptor {
                 let inner = self
                     .inner
                     .open_at(
-                        path_flags.into(),
+                        path_flags,
                         path,
-                        open_flags.into(),
-                        flags.into(),
+                        open_flags,
+                        flags,
                     )
                     .await
                     ?;
@@ -456,7 +227,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsRead(path.clone())],
             || ErrorCode::Access,
-            || async { self.inner.readlink_at(path).await.map_err(Into::into) },
+            || async { self.inner.readlink_at(path).await },
         )?
         .await
     }
@@ -464,7 +235,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsWrite(path.clone())],
             || ErrorCode::Access,
-            || async { self.inner.remove_directory_at(path).await.map_err(Into::into) },
+            || async { self.inner.remove_directory_at(path).await },
         )?
         .await
     }
@@ -501,7 +272,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
             &[Action::FsWrite(new_path.clone())],
             || ErrorCode::Access,
             || async {
-                self.inner.symlink_at(old_path, new_path).await.map_err(Into::into)
+                self.inner.symlink_at(old_path, new_path).await
             },
         )?
         .await
@@ -510,7 +281,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsWrite(path.clone())],
             || ErrorCode::Access,
-            || async { self.inner.unlink_file_at(path).await.map_err(Into::into) },
+            || async { self.inner.unlink_file_at(path).await },
         )?
         .await
     }
@@ -524,7 +295,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         }
     }
     async fn metadata_hash(&self) -> Result<MetadataHashValue, ErrorCode> {
-        self.inner.metadata_hash().await.map(|m| m.into()).map_err(Into::into)
+        self.inner.metadata_hash().await
     }
     async fn metadata_hash_at(
         &self,
@@ -538,7 +309,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
                 unsafe {
                     std::mem::transmute(
                         self.inner
-                            .metadata_hash_at(path_flags.into(), path)
+                            .metadata_hash_at(path_flags, path)
                             .await,
                     )
                 }
