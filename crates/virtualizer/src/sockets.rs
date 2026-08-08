@@ -32,12 +32,8 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = unsafe {
-                    std::mem::transmute(
-                        self.inner
-                            .bind(local_address),
-                    )
-                };
+                let res: Result<(), ErrorCode> = self.inner
+                            .bind(local_address);
                 res
             },
         )?
@@ -58,13 +54,9 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || async {
-                unsafe {
-                    std::mem::transmute(
-                        self.inner
+                self.inner
                             .connect(remote_address)
-                            .await,
-                    )
-                }
+                            .await
             },
         )?
         .await
@@ -84,7 +76,8 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         wit_bindgen::rt::async_support::StreamReader<u8>,
         wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>>,
     ) {
-        unsafe { std::mem::transmute(self.inner.receive()) }
+        let (s, f) = self.inner.receive();
+        (unsafe { std::mem::transmute(s) }, unsafe { std::mem::transmute(f) })
     }
     fn get_local_address(&self) -> Result<IpSocketAddress, ErrorCode> {
         self.inner.get_local_address().map(|a| a)
@@ -170,12 +163,8 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = unsafe {
-                    std::mem::transmute(
-                        self.inner
-                            .bind(local_address),
-                    )
-                };
+                let res: Result<(), ErrorCode> = self.inner
+                            .bind(local_address);
                 res
             },
         )?
@@ -196,12 +185,8 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = unsafe {
-                    std::mem::transmute(
-                        self.inner
-                            .connect(remote_address),
-                    )
-                };
+                let res: Result<(), ErrorCode> = self.inner
+                            .connect(remote_address);
                 res
             },
         )?
