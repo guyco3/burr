@@ -1,4 +1,4 @@
-import { parser } from './.wrdn/parser/index.js';
+import { parser } from './.wrdn/guyco3_parser/index.js';
 
 async function main() {
     console.log("Starting tutorial parser app...");

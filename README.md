@@ -22,13 +22,13 @@ wrdn install ghcr.io/guyco3/parser:0.1.0
 
 This generates a `.wrdn` directory containing a secure JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
 ```javascript
-import { parser } from './.wrdn/parser/index.js';
+import { parser } from './.wrdn/guyco3_parser/index.js';
 
 await parser.parseUppercase("hello world");
 ```
 > **IMPORTANT**: You **must** run your Node.js application with `--experimental-wasm-jspi` because WASI 0.3 relies heavily on asynchronous Promises.
 > ```bash
-> node --experimental-wasm-jspi app.js
+> node --experimental-wasm-jspi index.js
 > ```
 
 ## How it Works

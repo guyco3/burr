@@ -37,13 +37,13 @@ npm start
 ```
 
 **Expected Output:**
-You should see that `count-words` succeeds, but `parse-uppercase` throws an error. This is because `wrdn` intercepted the component's attempt to read the environment variable, and the default policy (`.wrdn/parser/policy.cedar`) denies all actions.
+You should see that `count-words` succeeds, but `parse-uppercase` throws an error. This is because `wrdn` intercepted the component's attempt to read the environment variable, and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions.
 
 ## Step 3: Edit the Policy
 
 To allow the component to execute successfully, we must explicitly permit it to read the `DEBUG_MODE` environment variable.
 
-Open `.wrdn/parser/policy.cedar` and add the following Cedar rule:
+Open `.wrdn/guyco3_parser/policy.cedar` and add the following Cedar rule:
 
 ```cedar
 permit(
