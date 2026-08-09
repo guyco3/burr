@@ -170,11 +170,16 @@ impl PolicyEngine {
             r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "decision": "{}"}}"#,
             timestamp, self.principal_id, action_str, resource_str, decision_str
         );
-        log::info!("[WARDEN AUDIT] {}", log);
 
         match answer.decision() {
-            Decision::Allow => Ok(()),
-            Decision::Deny => Err(()),
+            Decision::Allow => {
+                log::info!("[WARDEN AUDIT] {}", log);
+                Ok(())
+            },
+            Decision::Deny => {
+                log::error!("[WARDEN AUDIT] {}", log);
+                Err(())
+            }
         }
     }
 }
