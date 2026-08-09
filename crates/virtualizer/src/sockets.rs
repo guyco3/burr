@@ -44,47 +44,36 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         .await
     }
     fn listen(&self) -> Result<wit_bindgen::rt::async_support::StreamReader<TcpSocket>, ErrorCode> {
-        // 1. Get the host stream (no transmute!)
         let mut host_stream = self.inner.listen()?;
-
-        // 2. Create a new stream pair for the guest using the explicit Component Model async APIs.
         let (mut guest_writer, guest_reader) = crate::wit_stream::new::<TcpSocket>();
 
-        // 3. Spawn a background task to map the resources on the fly
         wit_bindgen::rt::async_support::spawn_local(async move {
             let mut read_buf = Vec::new();
             
-            // Continuously read from the host stream
             loop {
-                // Await the StreamRead future, providing a buffer for it to write into.
                 read_buf.clear();
-                // wit-bindgen stream.read expects a Vec and returns (StreamResult, Vec)
                 let (status, mut host_sockets) = host_stream.read(read_buf).await; 
                 
-                // Process any sockets that were successfully read in this tick
                 for host_socket in host_sockets.drain(..) {
                     let proxy_socket = ProxyTcpSocket { inner: host_socket };
                     
-                    // Write it to the guest stream. 
                     let (write_status, _) = guest_writer.write(vec![TcpSocket::new(proxy_socket)]).await;
                     if matches!(write_status, wit_bindgen::rt::async_support::StreamResult::Dropped) {
-                        return; // Guest closed their end of the stream, terminate task
+                        return;
                     }
                 }
 
-                // If the stream was gracefully closed or errored on the host side, stop polling.
                 match status {
                     wit_bindgen::rt::async_support::StreamResult::Dropped |
                     wit_bindgen::rt::async_support::StreamResult::Cancelled => break,
                     wit_bindgen::rt::async_support::StreamResult::Complete(_) => {
-                        read_buf = host_sockets; // Recycle the buffer
+                        read_buf = host_sockets;
                         continue;
                     },
                 }
             }
         });
 
-        // 4. Yield the reader to the guest
         Ok(guest_reader)
     }
     fn send(

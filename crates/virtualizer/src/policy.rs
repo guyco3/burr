@@ -14,7 +14,6 @@ pub enum Action {
     SocketConnect { ip: String, port: u16 },
     DnsLookup(String),
 
-    // Old fallbacks to keep things compiling while we migrate
     HttpIncomingRequest { url: String, method: String },
     CliExit,
     CliReadEnvironment,
@@ -65,7 +64,6 @@ impl PolicyEngine {
             String::new() // Empty policy = deny all
         });
 
-        // Hardcoded for now since the virtualizer is currently a single-tenant host.
         Self::new(&policy_str, schema_str, "telemetry-demo".to_string())
     }
 
