@@ -1,0 +1,9 @@
+{
+  "name": "tutorial-parser",
+  "version": "1.0.0",
+  "description": "Example tutorial for wrdn",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-wasm-jspi index.js"
+  }
+}

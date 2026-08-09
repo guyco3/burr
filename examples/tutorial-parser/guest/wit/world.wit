@@ -1,0 +1,8 @@
+package guyco3:parser@0.1.0;
+
+world guest {
+    import wasi:cli/environment@0.3.0;
+
+    export parse-uppercase: func(input: string) -> string;
+    export count-words: func(input: string) -> u32;
+}
