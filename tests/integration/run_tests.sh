@@ -44,8 +44,12 @@ run_scenario() {
     set -e
     
     # 4. Check for DENY
-    if ! echo "$output" | grep -qi "DENY" && ! echo "$output" | grep -qi "fail" && ! echo "$output" | grep -qi "error"; then
-        echo "FAIL ($scenario): Expected denial/error message not found in logs."
+    if echo "$output" | grep -q "ERR_UNSUPPORTED_ESM_URL_SCHEME"; then
+        echo "FAIL ($scenario): Node.js crashed with ESM URL scheme error (WASI imports missing)."
+        echo "$output"
+        return 1
+    elif ! echo "$output" | grep -qi "DENY"; then
+        echo "FAIL ($scenario): Expected denial message not found in logs."
         echo "$output"
         return 1
     else

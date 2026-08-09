@@ -3670,6 +3670,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "indexmap 2.14.0",
  "semver",
+ "serde",
 ]
 
 [[package]]
@@ -4095,6 +4096,7 @@ dependencies = [
  "tokio",
  "wasm-pkg-client",
  "wasm-pkg-common",
+ "wasmparser 0.254.0",
 ]
 
 [[package]]

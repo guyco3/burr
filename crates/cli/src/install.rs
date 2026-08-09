@@ -138,14 +138,45 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
     fs::write(&virtualizer_path, VIRTUALIZER_WASM).await.context("Failed to write virtualizer wasm")?;
 
     log::info!("Transpiling virtualizer...");
+    let virt_wasm = fs::read(&virtualizer_path).await.context("Failed to read virtualizer wasm")?;
+
+    let mut virt_map = HashMap::new();
+    let parser = wasmparser::Parser::new(0);
+    for payload in parser.parse_all(&virt_wasm) {
+        if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
+            for import in s {
+                if let Ok(import) = import {
+                    let name = import.name.name;
+                    if name.starts_with("wasi:") && !virt_map.contains_key(name) {
+                        if let Some(slash_idx) = name.find('/') {
+                            let pkg = &name[5..slash_idx];
+                            let interface_end = name.find('@').unwrap_or(name.len());
+                            let interface = &name[slash_idx + 1..interface_end];
+                            let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
+                            
+                            let shim_pkg = if version.starts_with("0.3.") {
+                                "preview3-shim"
+                            } else {
+                                "preview2-shim"
+                            };
+                            
+                            let shim_name = format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
+                            virt_map.insert(name.to_string(), shim_name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let mut virt_opts = TranspileOpts::default();
     virt_opts.name = "virtualizer".to_string();
+    virt_opts.map = Some(virt_map);
     virt_opts.async_mode = Some(AsyncMode::JavaScriptPromiseIntegration {
         imports: vec![],
         exports: vec![],
     });
 
-    let virt_wasm = fs::read(&virtualizer_path).await.context("Failed to read virtualizer wasm")?;
     let virt_transpiled =
         transpile(&virt_wasm, virt_opts).context("Failed to transpile virtualizer")?;
 
@@ -175,6 +206,37 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     guest_map.insert("wasi:sockets/types@0.3.0".to_string(), shim_rel_path.to_string());
     guest_map.insert("wasi:sockets/ip-name-lookup@0.3.0".to_string(), shim_rel_path.to_string());
 
+    let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
+
+    // Dynamically map any unhandled wasi: imports to @bytecodealliance/preview2-shim
+    let parser = wasmparser::Parser::new(0);
+    for payload in parser.parse_all(&guest_wasm) {
+        if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
+            for import in s {
+                if let Ok(import) = import {
+                    let name = import.name.name;
+                    if name.starts_with("wasi:") && !guest_map.contains_key(name) {
+                        if let Some(slash_idx) = name.find('/') {
+                            let pkg = &name[5..slash_idx];
+                            let interface_end = name.find('@').unwrap_or(name.len());
+                            let interface = &name[slash_idx + 1..interface_end];
+                            let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
+                            
+                            let shim_pkg = if version.starts_with("0.3.") {
+                                "preview3-shim"
+                            } else {
+                                "preview2-shim"
+                            };
+                            
+                            let shim_name = format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
+                            guest_map.insert(name.to_string(), shim_name);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let mut guest_opts = TranspileOpts::default();
     guest_opts.name = "guest".to_string();
     guest_opts.map = Some(guest_map);
@@ -183,7 +245,6 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
         exports: vec![],
     });
 
-    let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
     let guest_transpiled = transpile(&guest_wasm, guest_opts).context("Failed to transpile guest")?;
 
     let guest_out_dir = pkg_dir.join("out-guest");
