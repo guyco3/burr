@@ -64,7 +64,7 @@ impl PolicyEngine {
             String::new() // Empty policy = deny all
         });
 
-        Self::new(&policy_str, schema_str, "telemetry-demo".to_string())
+        Self::new(&policy_str, schema_str, "guest-module".to_string())
     }
 
     pub fn authorize(&self, action_req: &Action) -> Result<(), ()> {
@@ -220,7 +220,7 @@ mod tests {
     use super::*;
 
     const SCHEMA: &str = include_str!("../policy/schema.cedarschema");
-    const PRINCIPAL: &str = "telemetry-demo";
+    const PRINCIPAL: &str = "guest-module";
 
     fn setup_engine(policy_str: &str) -> PolicyEngine {
         PolicyEngine::new(policy_str, SCHEMA, PRINCIPAL.to_string())
@@ -286,7 +286,7 @@ mod tests {
     fn test_env_read_allow() {
         let policy = r#"
             permit(
-                principal == Warden::Module::"telemetry-demo",
+                principal == Warden::Module::"guest-module",
                 action == Warden::Action::"env_read",
                 resource == Warden::Resource::"environment"
             ) when {
@@ -316,7 +316,7 @@ mod tests {
     fn test_network_connect() {
         let policy = r#"
             permit(
-                principal == Warden::Module::"telemetry-demo",
+                principal == Warden::Module::"guest-module",
                 action == Warden::Action::"socket_connect",
                 resource == Warden::Resource::"network"
             ) when {
