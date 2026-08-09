@@ -152,6 +152,7 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
                             let pkg = &name[5..slash_idx];
                             let interface_end = name.find('@').unwrap_or(name.len());
                             let interface = &name[slash_idx + 1..interface_end];
+                            
                             let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
                             
                             let shim_pkg = if version.starts_with("0.3.") {
@@ -200,15 +201,11 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     log::info!("Transpiling guest with mappings...");
     let shim_rel_path = "../warden_shim.js";
     let mut guest_map = HashMap::new();
-    guest_map.insert("wasi:cli/environment@0.3.0".to_string(), shim_rel_path.to_string());
-    guest_map.insert("wasi:filesystem/preopens@0.3.0".to_string(), shim_rel_path.to_string());
-    guest_map.insert("wasi:filesystem/types@0.3.0".to_string(), shim_rel_path.to_string());
-    guest_map.insert("wasi:sockets/types@0.3.0".to_string(), shim_rel_path.to_string());
-    guest_map.insert("wasi:sockets/ip-name-lookup@0.3.0".to_string(), shim_rel_path.to_string());
-
+    
     let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
 
-    // Dynamically map any unhandled wasi: imports to @bytecodealliance/preview2-shim
+    // Dynamically map unhandled wasi: imports. 
+    // Route security-critical ones to warden_shim.js, others to preview2/3-shim.
     let parser = wasmparser::Parser::new(0);
     for payload in parser.parse_all(&guest_wasm) {
         if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
@@ -220,6 +217,15 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
                             let pkg = &name[5..slash_idx];
                             let interface_end = name.find('@').unwrap_or(name.len());
                             let interface = &name[slash_idx + 1..interface_end];
+                            
+                            // Map security-critical interfaces to our shim regardless of version
+                            if (pkg == "cli" && interface == "environment") ||
+                               (pkg == "filesystem" && (interface == "preopens" || interface == "types")) ||
+                               (pkg == "sockets" && (interface == "types" || interface == "ip-name-lookup")) {
+                                guest_map.insert(name.to_string(), shim_rel_path.to_string());
+                                continue;
+                            }
+                            
                             let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
                             
                             let shim_pkg = if version.starts_with("0.3.") {
