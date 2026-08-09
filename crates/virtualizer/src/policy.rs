@@ -162,13 +162,31 @@ impl PolicyEngine {
             Decision::Deny => "DENY",
         };
 
+        let details = match action_req {
+            Action::EnvRead(key) => format!(r#"{{"key": "{}"}}"#, key),
+            Action::FsRead(path) => format!(r#"{{"path": "{}"}}"#, path),
+            Action::FsWrite(path) => format!(r#"{{"path": "{}"}}"#, path),
+            Action::HttpOutgoingRequest { url, method }
+            | Action::HttpIncomingRequest { url, method } => {
+                format!(r#"{{"url": "{}", "method": "{}"}}"#, url, method)
+            }
+            Action::SocketConnect { ip, port } => {
+                format!(r#"{{"ip": "{}", "port": {}}}"#, ip, port)
+            }
+            Action::DnsLookup(hostname) => format!(r#"{{"hostname": "{}"}}"#, hostname),
+            Action::CliExit
+            | Action::CliReadEnvironment
+            | Action::CliReadArguments
+            | Action::CliReadInitialCwd => "{}".to_string(),
+        };
+
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
         let log = format!(
-            r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "decision": "{}"}}"#,
-            timestamp, self.principal_id, action_str, resource_str, decision_str
+            r#"{{"timestamp": {}, "module": "{}", "action": "{}", "resource": "{}", "details": {}, "decision": "{}"}}"#,
+            timestamp, self.principal_id, action_str, resource_str, details, decision_str
         );
 
         match answer.decision() {
