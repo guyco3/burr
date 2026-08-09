@@ -37,7 +37,9 @@ npm start
 ```
 
 **Expected Output:**
-You should see that `count-words` succeeds, but `parse-uppercase` throws an error. This is because `wrdn` intercepted the component's attempt to read the environment variable, and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions.
+You should see that `count-words` succeeds, and `parse-uppercase` also succeeds but WITHOUT printing the hidden debug message. This is because `wrdn` intercepted the component's attempt to read the `DEBUG_MODE` environment variable, and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions.
+
+By silently filtering out the environment variable instead of crashing the process, `wrdn` allows components to degrade gracefully!
 
 ## Step 3: Edit the Policy
 
@@ -63,7 +65,7 @@ npm start
 ```
 
 **Expected Output:**
-The application should now complete successfully! The Virtualizer intercepted the request, evaluated your new policy, saw that `DEBUG_MODE` was explicitly allowed, and permitted the WebAssembly component to read it.
+The application should now complete successfully, BUT you will now see the `[guest] parse_uppercase called...` debug log appear! The Virtualizer intercepted the request, evaluated your new policy, saw that `DEBUG_MODE` was explicitly allowed, and permitted the WebAssembly component to read it.
 
 ---
 

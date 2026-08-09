@@ -9,13 +9,12 @@ async function main() {
     const wordCount = await countWords(input);
     console.log(`Word count: ${wordCount}`);
 
-    try {
-        const uppercase = await parseUppercase(input);
-        console.log(`Uppercase output: "${uppercase}"`);
-    } catch (e) {
-        console.error("\n[!] The component threw an error! The policy engine likely blocked its action.");
-        console.error(e.message);
-    }
+    // We will call the function while passing DEBUG_MODE=1 to Node.js
+    // By default, wrdn's sandbox will SILENTLY FILTER this environment variable,
+    // so the guest component will never see it, and no debug message will be printed.
+    const uppercase = await parseUppercase(input);
+    console.log(`Uppercase output: "${uppercase}"`);
+    console.log("\n[?] Did you see a [guest] debug message printed above? If not, the wrdn sandbox successfully blocked it!");
 }
 
 main().catch(console.error);
