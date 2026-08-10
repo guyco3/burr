@@ -1,6 +1,6 @@
 # Architecture Overview
 
-`wrdn` is designed to provide a secure execution environment for WebAssembly Component Model modules by acting as an intercepting proxy. It leverages WASI 0.3 interfaces to virtualize system capabilities.
+`burr` is designed to provide a secure execution environment for WebAssembly Component Model modules by acting as an intercepting proxy. It leverages WASI 0.3 interfaces to virtualize system capabilities.
 
 ## Compilation Workflow
 
@@ -11,8 +11,8 @@ Both the internal `virtualizer` and the third-party guest components are compile
 - **`wasm32-wasip2`**: This Rust target produces Core WebAssembly that adheres to the WebAssembly System Interface (WASI) Preview 2/3 ABI. 
 - **`wit-bindgen` (v0.60.0+)**: Used to generate Rust bindings from `.wit` files. It translates high-level Component Model interfaces (like `wasi:cli/environment`) into Rust traits and structures. Version 0.60.0+ is strictly required to support the `async` functions and stream resources introduced in WASI 0.3.
 
-### 2. The `wrdn` Virtualization Strategy
-When you run `wrdn install`, the CLI performs the following steps:
+### 2. The `burr` Virtualization Strategy
+When you run `burr install`, the CLI performs the following steps:
 1. **Fetch**: Downloads the `.wasm` component.
 2. **Virtualizer Injection**: The CLI contains a bundled `virtualizer.wasm` module. This module exports the same WASI 0.3 interfaces that standard environments provide (e.g., `wasi:cli/environment`, `wasi:filesystem/preopens`), but implements them internally using the Cedar Policy Engine.
 3. **Transpilation (`jco`)**: 
@@ -27,7 +27,7 @@ Because WASI 0.3 utilizes `async func` heavily for non-blocking I/O, the resulti
 This requires the `--experimental-wasm-jspi` flag in Node.js.
 
 ## The `wasm32-wasip2` Naming Quirk (It is NOT a Polyfill)
-You might wonder why we use the `--target=wasm32-wasip2` flag if `wrdn` is built around **WASI 0.3**. This is one of the most confusing parts of the current Rust WebAssembly ecosystem. 
+You might wonder why we use the `--target=wasm32-wasip2` flag if `burr` is built around **WASI 0.3**. This is one of the most confusing parts of the current Rust WebAssembly ecosystem. 
 
 **Here is what is actually happening:**
 1. **The `wasm32-wasip3` Target Problem**: Rust currently has a native `wasm32-wasip3` target, but it is classified as a "Tier 3" target. This means pre-compiled standard libraries do not exist yet, and using it would require every developer to manually compile the entire Rust standard library from source (a slow and brittle process).
@@ -47,7 +47,7 @@ The Virtualizer operates on a default-deny architecture powered by [Cedar Policy
 
 ### Dependency Injection
 To ensure maximum reliability, the `PolicyEngine` (located in `crates/virtualizer/src/policy.rs`) is decoupled from the runtime environment.
-- **Production (`PolicyEngine::from_env`)**: At runtime, the CLI extracts the guest package name and loads the corresponding `policy.cedar` file from the `.wrdn/` directory.
+- **Production (`PolicyEngine::from_env`)**: At runtime, the CLI extracts the guest package name and loads the corresponding `policy.cedar` file from the `.burr/` directory.
 - **Testing (`PolicyEngine::new`)**: The engine is instantiated entirely in-memory by injecting the schema string and mock policy strings directly. This permits high-speed unit testing of the exact context mappings (e.g., verifying that a specific IP address correctly fails authorization) without any filesystem I/O or brittle test setups.
 
 ### Stream Interception & WASI 0.3 Compatibility

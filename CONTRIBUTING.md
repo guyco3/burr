@@ -1,4 +1,4 @@
-# Contributing to wrdn
+# Contributing to burr
 
 We love your input! We want to make contributing to this project as easy and transparent as possible.
 
@@ -16,11 +16,15 @@ make build
 ```
 
 ## Running Tests
-Run the full automated test suite to ensure the Cedar policy engine and core logic is functioning correctly:
+Run the unit tests to ensure the Cedar policy engine and core logic is functioning correctly:
 ```bash
-cargo test --workspace
+make test-unit
 ```
 To run the end-to-end (E2E) integration tests:
+```bash
+make test-int
+```
+To run all tests (both unit and integration):
 ```bash
 make test
 ```

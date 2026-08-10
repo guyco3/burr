@@ -1,11 +1,11 @@
 {
   "name": "tutorial-parser",
   "version": "1.0.0",
-  "description": "Example tutorial for wrdn",
+  "description": "Example tutorial for burr",
   "type": "module",
   "scripts": {
     "start": "DEBUG_MODE=1 node --experimental-wasm-jspi index.js",
-    "clean": "rm -rf .wrdn node_modules package-lock.json"
+    "clean": "rm -rf .burr node_modules package-lock.json"
   },
   "dependencies": {
     "@bytecodealliance/preview2-shim": "^0.20.1",

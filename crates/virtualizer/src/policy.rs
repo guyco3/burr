@@ -35,7 +35,7 @@ impl PolicyEngine {
 
         let policies = PolicySet::from_str(policy_str).unwrap_or_else(|e| {
             log::warn!(
-                "WARDEN INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.",
+                "BURR INIT ERROR: Failed to parse policies ({}). Defaulting to DENY ALL.",
                 e
             );
             PolicySet::new()
@@ -58,7 +58,7 @@ impl PolicyEngine {
 
         let policy_str = std::fs::read_to_string(&policy_path).unwrap_or_else(|e| {
             log::info!(
-                "WARDEN INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.",
+                "BURR INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.",
                 policy_path,
                 e
             );
@@ -70,7 +70,7 @@ impl PolicyEngine {
 
     pub fn authorize(&self, action_req: &Action) -> Result<(), ()> {
         let principal = EntityUid::from_type_name_and_id(
-            EntityTypeName::from_str("Warden::Module").unwrap(),
+            EntityTypeName::from_str("Burr::Module").unwrap(),
             EntityId::from_str(&self.principal_id).unwrap(),
         );
 
@@ -153,11 +153,11 @@ impl PolicyEngine {
         };
 
         let action = EntityUid::from_type_name_and_id(
-            EntityTypeName::from_str("Warden::Action").unwrap(),
+            EntityTypeName::from_str("Burr::Action").unwrap(),
             EntityId::from_str(action_str).unwrap(),
         );
         let resource = EntityUid::from_type_name_and_id(
-            EntityTypeName::from_str("Warden::Resource").unwrap(),
+            EntityTypeName::from_str("Burr::Resource").unwrap(),
             EntityId::from_str(resource_str).unwrap(),
         );
 
@@ -204,11 +204,11 @@ impl PolicyEngine {
 
         match answer.decision() {
             Decision::Allow => {
-                log::info!("[WARDEN AUDIT] {}", log);
+                log::info!("[BURR AUDIT] {}", log);
                 Ok(())
             },
             Decision::Deny => {
-                log::error!("[WARDEN AUDIT] {}", log);
+                log::error!("[BURR AUDIT] {}", log);
                 Err(())
             }
         }
@@ -322,9 +322,9 @@ mod tests {
     fn test_env_read_allow() {
         let policy = r#"
             permit(
-                principal == Warden::Module::"guest-module",
-                action == Warden::Action::"env_read",
-                resource == Warden::Resource::"environment"
+                principal == Burr::Module::"guest-module",
+                action == Burr::Action::"env_read",
+                resource == Burr::Resource::"environment"
             ) when {
                 context.key == "APP_ENV"
             };
@@ -352,9 +352,9 @@ mod tests {
     fn test_network_connect() {
         let policy = r#"
             permit(
-                principal == Warden::Module::"guest-module",
-                action == Warden::Action::"socket_connect",
-                resource == Warden::Resource::"network"
+                principal == Burr::Module::"guest-module",
+                action == Burr::Action::"socket_connect",
+                resource == Burr::Resource::"network"
             ) when {
                 context.ip == ip("93.184.216.34") &&
                 context.port == 443

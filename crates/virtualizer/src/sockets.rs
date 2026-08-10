@@ -239,11 +239,11 @@ impl ip_name_lookup::Guest for VirtualizationProxy {
             &[Action::DnsLookup(name.clone())],
             || ip_name_lookup::ErrorCode::NameUnresolvable,
             || async {
-                log::debug!("WARDEN: Before inner.resolve_addresses for name: {}", name);
+                log::debug!("BURR: Before inner.resolve_addresses for name: {}", name);
                 let addrs =
                     crate::wasi::sockets::ip_name_lookup::resolve_addresses(name.clone()).await;
                 log::debug!(
-                    "WARDEN: After inner.resolve_addresses. Result: {}",
+                    "BURR: After inner.resolve_addresses. Result: {}",
                     addrs.is_ok()
                 );
 

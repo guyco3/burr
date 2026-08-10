@@ -2,8 +2,8 @@ FROM node:22-slim
 
 # Copy pre-compiled virtualizer CLI if we are building locally,
 # but for the tutorial, we just use the pre-built CLI from GitHub or compile it.
-# Actually, the user's tutorial says `wrdn install`, so we need `wrdn` inside the container.
-# We will download the latest wrdn release or copy it from the host.
+# Actually, the user's tutorial says `burr install`, so we need `burr` inside the container.
+# We will download the latest burr release or copy it from the host.
 
 WORKDIR /app
 COPY package.json package-lock.json* ./

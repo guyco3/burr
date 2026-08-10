@@ -28,7 +28,7 @@ impl Guest for FuzzerComponent {
         }
 
         let root_dir = &dirs[0].0;
-        let alphabet = vec![".wrdn", "..", "/", "target", "symlink"];
+        let alphabet = vec![".burr", "..", "/", "target", "symlink"];
 
         let mut path_stack = vec![];
 
@@ -67,8 +67,8 @@ impl FuzzerComponent {
             if res.is_ok() {
                 println!("[FUZZER] SUCCESSFULLY ACCESSED: {}", path_str);
 
-                // If we successfully accessed something containing .wrdn or .., that's a breakout
-                if path_str.contains(".wrdn") || path_str.contains("..") {
+                // If we successfully accessed something containing .burr or .., that's a breakout
+                if path_str.contains(".burr") || path_str.contains("..") {
                     println!(
                         "[FUZZER] CRITICAL VULNERABILITY! Sandbox breakout via path: {}",
                         path_str

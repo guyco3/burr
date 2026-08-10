@@ -1,4 +1,4 @@
-// Default wrdn policy: Deny all actions
+// Default burr policy: Deny all actions
 forbid(
     principal,
     action,

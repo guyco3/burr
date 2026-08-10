@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "Installing wrdn CLI..."
+echo "Installing burr CLI..."
 
 # Check if we are running inside the cloned git repository
 if [ -f "Cargo.toml" ] && [ -d "crates/cli" ]; then
@@ -28,7 +28,7 @@ case "$ARCH" in
 esac
 
 # Find the latest release version
-LATEST_RELEASE_URL="https://api.github.com/repos/guyco3/wrdn/releases/latest"
+LATEST_RELEASE_URL="https://api.github.com/repos/guyco3/burr/releases/latest"
 VERSION=$(curl -sL $LATEST_RELEASE_URL | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
 if [ -z "$VERSION" ]; then
@@ -37,17 +37,17 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-BINARY_URL="https://github.com/guyco3/wrdn/releases/download/$VERSION/wrdn-$OS-$ARCH"
+BINARY_URL="https://github.com/guyco3/burr/releases/download/$VERSION/burr-$OS-$ARCH"
 
 if [ "$OS" == "windows" ]; then
     BINARY_URL="${BINARY_URL}.exe"
 fi
 
-INSTALL_DIR="${HOME}/.wrdn/bin"
+INSTALL_DIR="${HOME}/.burr/bin"
 mkdir -p "$INSTALL_DIR"
-DEST="$INSTALL_DIR/wrdn"
+DEST="$INSTALL_DIR/burr"
 
-echo "Downloading wrdn $VERSION for $OS ($ARCH)..."
+echo "Downloading burr $VERSION for $OS ($ARCH)..."
 curl -sL --fail "$BINARY_URL" -o "$DEST" || {
     echo "Failed to download pre-compiled binary. It may not exist for your platform."
     echo "Please build from source instead: 'make install'"
@@ -56,5 +56,5 @@ curl -sL --fail "$BINARY_URL" -o "$DEST" || {
 
 chmod +x "$DEST"
 
-echo "Installation complete! wrdn has been installed to $DEST"
+echo "Installation complete! burr has been installed to $DEST"
 echo "Make sure $INSTALL_DIR is in your PATH."

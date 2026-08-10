@@ -12,7 +12,7 @@ use wasm_pkg_client::Client as WkgClient;
 use wasm_pkg_common::package::{PackageRef, Version};
 
 const VIRTUALIZER_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/virtualizer.wasm"));
-const WARDEN_SHIM_JS: &str = include_str!("assets/warden_shim.js");
+const BURR_SHIM_JS: &str = include_str!("assets/burr_shim.js");
 const HTTP_SHIM_JS: &str = include_str!("assets/http_shim.js");
 
 #[derive(Debug, PartialEq)]
@@ -182,7 +182,7 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
     let virt_transpiled =
         transpile(&virt_wasm, virt_opts).context("Failed to transpile virtualizer")?;
 
-    let virt_out_dir = pkg_dir.join("out-warden");
+    let virt_out_dir = pkg_dir.join("out-burr");
     fs::create_dir_all(&virt_out_dir).await?;
     for (file_name, data) in virt_transpiled.files {
         let out_path = virt_out_dir.join(&file_name);
@@ -203,20 +203,20 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
 
 async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     log::info!("Creating module mapper shim...");
-    let shim_path = pkg_dir.join("warden_shim.js");
-    fs::write(&shim_path, WARDEN_SHIM_JS).await.context("Failed to write warden shim")?;
+    let shim_path = pkg_dir.join("burr_shim.js");
+    fs::write(&shim_path, BURR_SHIM_JS).await.context("Failed to write burr shim")?;
 
     let http_shim_path = pkg_dir.join("http_shim.js");
     fs::write(&http_shim_path, HTTP_SHIM_JS).await.context("Failed to write http shim")?;
 
     log::info!("Transpiling guest with mappings...");
-    let shim_rel_path = "../warden_shim.js";
+    let shim_rel_path = "../burr_shim.js";
     let mut guest_map = HashMap::new();
     
     let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
 
     // Dynamically map unhandled wasi: imports. 
-    // Route security-critical ones to warden_shim.js, others to preview2/3-shim.
+    // Route security-critical ones to burr_shim.js, others to preview2/3-shim.
     let parser = wasmparser::Parser::new(0);
     for payload in parser.parse_all(&guest_wasm) {
         if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
@@ -291,9 +291,9 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
         ParsedReference::Wkg(_, _, pkg) => pkg.clone(),
     };
 
-    let wrdn_dir = PathBuf::from(".wrdn");
-    let pkg_dir = wrdn_dir.join(&pkg_name);
-    fs::create_dir_all(&pkg_dir).await.context("Failed to create .wrdn pkg directory")?;
+    let burr_dir = PathBuf::from(".burr");
+    let pkg_dir = burr_dir.join(&pkg_name);
+    fs::create_dir_all(&pkg_dir).await.context("Failed to create .burr pkg directory")?;
     
     let guest_wasm_path = pkg_dir.join("guest.wasm");
     fetch_guest(&parsed, oci_ref, &pkg_dir, &guest_wasm_path).await?;
@@ -310,7 +310,7 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     fs::write(&index_js_path, index_js_content).await.context("Failed to write index.js entrypoint")?;
 
     log::info!("Installation complete for {}.", oci_ref);
-    log::info!("To use this package, import from '.wrdn/{}/index.js'", pkg_name);
+    log::info!("To use this package, import from '.burr/{}/index.js'", pkg_name);
 
     Ok(())
 }

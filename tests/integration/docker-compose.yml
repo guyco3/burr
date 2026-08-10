@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.target
-    image: wrdn-target
+    image: burr-target
     volumes:
       - ../../:/workspace
     working_dir: /workspace/tests/integration
@@ -19,7 +19,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.c2
-    image: wrdn-c2
+    image: burr-c2
     ports:
       - "4444:4444"
       - "8000:8000"
