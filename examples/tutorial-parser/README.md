@@ -30,16 +30,16 @@ This command downloads the component and automatically wraps it in the `wrdn` se
 
 The `index.js` file imports the protected component and calls both of its functions. 
 
-Run the application:
+Run the application inside a Docker container (this strictly limits the environment variables the guest can see to a small baseline, keeping logs clean and your local environment secure):
 ```bash
-npm start
-# or: node --experimental-wasm-jspi index.js
+npm install
+docker run --rm -v $(pwd):/app -w /app -e DEBUG_MODE=1 node:22-slim node --experimental-wasm-jspi index.js
 ```
 
 **Expected Output:**
-You should see that `count-words` succeeds, and `parse-uppercase` also succeeds but WITHOUT printing the hidden debug message. This is because `wrdn` intercepted the component's attempt to read the `DEBUG_MODE` environment variable, and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions.
+You should see that `count-words` succeeds, and `parse-uppercase` also succeeds. However, before it prints the uppercase output, you will see `[WARDEN AUDIT]` error logs! This is because `wrdn` intercepted the component's attempt to read environment variables (including `DEBUG_MODE`), and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions. 
 
-By silently filtering out the environment variable instead of crashing the process, `wrdn` allows components to degrade gracefully!
+By filtering out the environment variables instead of crashing the process, `wrdn` allows components to degrade gracefully!
 
 ## Step 3: Edit the Policy
 
@@ -61,7 +61,7 @@ permit(
 
 Run the application again:
 ```bash
-npm start
+docker run --rm -v $(pwd):/app -w /app -e DEBUG_MODE=1 node:22-slim node --experimental-wasm-jspi index.js
 ```
 
 **Expected Output:**
