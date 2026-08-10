@@ -12,6 +12,7 @@ pub enum Action {
     FsWrite(String),
     HttpOutgoingRequest { url: String, method: String },
     SocketConnect { ip: String, port: u16 },
+    SocketBind { ip: String, port: u16 },
     DnsLookup(String),
 
     HttpIncomingRequest { url: String, method: String },
@@ -124,6 +125,18 @@ impl PolicyEngine {
                 );
                 ("socket_connect", "network", map)
             }
+            Action::SocketBind { ip, port } => {
+                let mut map = HashMap::new();
+                map.insert(
+                    "ip".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip)).unwrap(),
+                );
+                map.insert(
+                    "port".to_string(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("{}", port)).unwrap(),
+                );
+                ("socket_bind", "network", map)
+            }
             Action::DnsLookup(hostname) => {
                 let mut map = HashMap::new();
                 map.insert(
@@ -170,7 +183,7 @@ impl PolicyEngine {
             | Action::HttpIncomingRequest { url, method } => {
                 format!(r#"{{"url": "{}", "method": "{}"}}"#, url, method)
             }
-            Action::SocketConnect { ip, port } => {
+            Action::SocketConnect { ip, port } | Action::SocketBind { ip, port } => {
                 format!(r#"{{"ip": "{}", "port": {}}}"#, ip, port)
             }
             Action::DnsLookup(hostname) => format!(r#"{{"hostname": "{}"}}"#, hostname),

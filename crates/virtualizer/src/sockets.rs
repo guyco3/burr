@@ -20,7 +20,7 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         let (ip_str, port) = format_ip_port(&local_address);
 
         authorize_and_execute(
-            &[Action::SocketConnect { ip: ip_str, port }],
+            &[Action::SocketBind { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
                 let res: Result<(), ErrorCode> = self.inner
@@ -91,10 +91,10 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         self.inner.receive()
     }
     fn get_local_address(&self) -> Result<IpSocketAddress, ErrorCode> {
-        self.inner.get_local_address().map(|a| a)
+        self.inner.get_local_address()
     }
     fn get_remote_address(&self) -> Result<IpSocketAddress, ErrorCode> {
-        self.inner.get_remote_address().map(|a| a)
+        self.inner.get_remote_address()
     }
     fn get_is_listening(&self) -> bool {
         self.inner.get_is_listening()
@@ -162,7 +162,7 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
         let (ip_str, port) = format_ip_port(&local_address);
 
         authorize_and_execute(
-            &[Action::SocketConnect { ip: ip_str, port }],
+            &[Action::SocketBind { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
                 let res: Result<(), ErrorCode> = self.inner
@@ -198,10 +198,10 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
         self.inner.receive().await.map(|(d, a)| (d, a))
     }
     fn get_local_address(&self) -> Result<IpSocketAddress, ErrorCode> {
-        self.inner.get_local_address().map(|a| a)
+        self.inner.get_local_address()
     }
     fn get_remote_address(&self) -> Result<IpSocketAddress, ErrorCode> {
-        self.inner.get_remote_address().map(|a| a)
+        self.inner.get_remote_address()
     }
     fn get_address_family(&self) -> IpAddressFamily {
         self.inner.get_address_family()
@@ -248,28 +248,26 @@ impl ip_name_lookup::Guest for VirtualizationProxy {
                 );
 
                 let addrs = addrs?;
-                Ok(addrs
-                    .into_iter()
-                    .map(|a| a)
-                    .collect())
+                Ok(addrs)
             },
         )?
         .await
     }
 }
 
+use std::net::{Ipv4Addr, Ipv6Addr};
+
 pub(crate) fn format_ip_port(addr: &IpSocketAddress) -> (String, u16) {
     match addr {
         IpSocketAddress::Ipv4(v4) => (
-            format!("{}.{}.{}.{}", v4.address.0, v4.address.1, v4.address.2, v4.address.3),
+            Ipv4Addr::new(v4.address.0, v4.address.1, v4.address.2, v4.address.3).to_string(),
             v4.port,
         ),
         IpSocketAddress::Ipv6(v6) => (
-            format!(
-                "{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}:{:x}",
+            Ipv6Addr::new(
                 v6.address.0, v6.address.1, v6.address.2, v6.address.3,
                 v6.address.4, v6.address.5, v6.address.6, v6.address.7
-            ),
+            ).to_string(),
             v6.port,
         ),
     }
@@ -299,7 +297,7 @@ mod tests {
             scope_id: 0,
         });
         let (ip, port) = format_ip_port(&addr);
-        assert_eq!(ip, "2001:db8:0:0:0:0:0:1");
+        assert_eq!(ip, "2001:db8::1");
         assert_eq!(port, 80);
     }
 }

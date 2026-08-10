@@ -31,13 +31,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
         data: wit_bindgen::rt::async_support::StreamReader<u8>,
         offset: Filesize,
     ) -> wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>> {
-        unimplemented!()
+        self.inner.write_via_stream(data, offset)
     }
     fn append_via_stream(
         &self,
         data: wit_bindgen::rt::async_support::StreamReader<u8>,
     ) -> wit_bindgen::rt::async_support::FutureReader<Result<(), ErrorCode>> {
-        unimplemented!()
+        self.inner.append_via_stream(data)
     }
     async fn advise(
         &self,
@@ -174,8 +174,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
         open_flags: OpenFlags,
         flags: DescriptorFlags,
     ) -> Result<Descriptor, ErrorCode> {
+        let mut actions = vec![Action::FsRead(path.clone())];
+        if flags.contains(DescriptorFlags::WRITE) || open_flags.contains(OpenFlags::CREATE) || open_flags.contains(OpenFlags::TRUNCATE) {
+            actions.push(Action::FsWrite(path.clone()));
+        }
+        
         authorize_and_execute(
-            &[Action::FsRead(path.clone())],
+            &actions,
             || ErrorCode::Access,
             || async {
                 let inner = self
