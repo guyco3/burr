@@ -16,7 +16,7 @@ build-guests:
 	cd tests/integration/scenarios/telemetry-exfiltration/guest && cargo build --target=wasm32-wasip2 --release
 	cd tests/integration/scenarios/credential-harvester/guest && cargo build --target=wasm32-wasip2 --release
 	cd tests/integration/scenarios/fuzzer/guest && cargo build --target=wasm32-wasip2 --release
-	cd examples/tutorial-parser/guest && cargo build --target=wasm32-wasip1 --release
+	cd examples/tutorial-parser/guest && cargo build --target=wasm32-wasip2 --release
 
 # Run burr install for integration tests
 build-int: build build-guests
@@ -28,7 +28,7 @@ build-int: build build-guests
 # Run burr install for examples
 build-ex: build build-guests
 	@echo "=== Installing burr virtualizer for examples ==="
-	cd examples/tutorial-parser && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/examples/tutorial-parser/guest/target/wasm32-wasip1/release/parser.wasm"
+	cd examples/tutorial-parser && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/examples/tutorial-parser/guest/target/wasm32-wasip2/release/parser.wasm"
 
 # Run unit tests
 test-unit: build

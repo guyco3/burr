@@ -305,6 +305,23 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     policy::ensure_policy_exists(&pkg_dir)?;
 
     log::info!("Generating Node.js entrypoint...");
+    let setup_js_path = pkg_dir.join("setup.js");
+    let setup_js_content = r#"
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const policyPath = path.join(__dirname, 'policy.cedar');
+try {
+    process.env.BURR_POLICY_CONTENT = fs.readFileSync(policyPath, 'utf8');
+} catch (e) {
+    // If the file cannot be read, the rust virtualizer will handle the missing policy
+}
+process.env.BURR_POLICY_PATH = policyPath;
+"#;
+    fs::write(&setup_js_path, setup_js_content).await.context("Failed to write setup.js")?;
+
     let index_js_path = pkg_dir.join("index.js");
     let index_js_content = include_str!("assets/index.js");
     fs::write(&index_js_path, index_js_content).await.context("Failed to write index.js entrypoint")?;

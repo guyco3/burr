@@ -53,16 +53,18 @@ impl PolicyEngine {
     pub fn from_env() -> Self {
         let schema_str = include_str!("../policy/schema.cedarschema");
 
-        let policy_path =
-            std::env::var("WRDN_POLICY_PATH").unwrap_or_else(|_| "./policy.cedar".to_string());
+        let policy_str = std::env::var("BURR_POLICY_CONTENT").unwrap_or_else(|_| {
+            let policy_path =
+                std::env::var("BURR_POLICY_PATH").unwrap_or_else(|_| "./policy.cedar".to_string());
 
-        let policy_str = std::fs::read_to_string(&policy_path).unwrap_or_else(|e| {
-            log::info!(
-                "BURR INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.",
-                policy_path,
-                e
-            );
-            String::new() // Empty policy = deny all
+            std::fs::read_to_string(&policy_path).unwrap_or_else(|e| {
+                log::info!(
+                    "BURR INIT WARNING: Failed to read policy from {} ({}). Defaulting to DENY ALL.",
+                    policy_path,
+                    e
+                );
+                String::new() // Empty policy = deny all
+            })
         });
 
         Self::new(&policy_str, schema_str, "guest-module".to_string())
