@@ -1,6 +1,6 @@
-# Tutorial: Using wrdn with GitHub Container Registry
+# Tutorial: Using burr with GitHub Container Registry
 
-This tutorial demonstrates how to install a WebAssembly Component from an OCI registry (GitHub Container Registry) and protect your Node.js application from its hidden behaviors using `wrdn`.
+This tutorial demonstrates how to install a WebAssembly Component from an OCI registry (GitHub Container Registry) and protect your Node.js application from its hidden behaviors using `burr`.
 
 ## The Scenario
 
@@ -8,7 +8,7 @@ We have built a simple WASM component named `parser`. It exports two functions:
 1. `count-words(input)`
 2. `parse-uppercase(input)`
 
-However, the author of this component included a hidden behavior: when `parse-uppercase` is called, it attempts to read the `DEBUG_MODE` environment variable from the host system. By default, `wrdn`'s strict Default-Deny policy will block this!
+However, the author of this component included a hidden behavior: when `parse-uppercase` is called, it attempts to read the `DEBUG_MODE` environment variable from the host system. By default, `burr`'s strict Default-Deny policy will block this!
 
 ---
 
@@ -21,10 +21,10 @@ cd app
 
 Install the guest module directly from the public GitHub Container Registry:
 ```bash
-wrdn install ghcr.io/guyco3/parser:0.1.0
+burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This command downloads the component and automatically wraps it in the `wrdn` secure virtualizer. You will see a new `.wrdn/` directory created.
+This command downloads the component and automatically wraps it in the `burr` secure virtualizer. You will see a new `.burr/` directory created.
 
 ## Step 2: Run the App (Blocked by Policy)
 
@@ -37,20 +37,20 @@ docker run --rm -v $(pwd):/app -w /app -e DEBUG_MODE=1 node:22-slim node --exper
 ```
 
 **Expected Output:**
-You should see that `count-words` succeeds, and `parse-uppercase` also succeeds. However, before it prints the uppercase output, you will see `[WARDEN AUDIT]` error logs! This is because `wrdn` intercepted the component's attempt to read environment variables (including `DEBUG_MODE`), and the default policy (`.wrdn/guyco3_parser/policy.cedar`) denies all actions. 
+You should see that `count-words` succeeds, and `parse-uppercase` also succeeds. However, before it prints the uppercase output, you will see `[BURR AUDIT]` error logs! This is because `burr` intercepted the component's attempt to read environment variables (including `DEBUG_MODE`), and the default policy (`.burr/guyco3_parser/policy.cedar`) denies all actions. 
 
-By filtering out the environment variables instead of crashing the process, `wrdn` allows components to degrade gracefully!
+By filtering out the environment variables instead of crashing the process, `burr` allows components to degrade gracefully!
 
 ## Step 3: Edit the Policy
 
 To allow the component to execute successfully, we must explicitly permit it to read the `DEBUG_MODE` environment variable.
 
-Open `.wrdn/guyco3_parser/policy.cedar` and add the following Cedar rule:
+Open `.burr/guyco3_parser/policy.cedar` and add the following Cedar rule:
 
 ```cedar
 permit(
-    principal == Warden::Module::"guest-module",
-    action == Warden::Action::"env_read",
+    principal == Burr::Module::"guest-module",
+    action == Burr::Action::"env_read",
     resource
 ) when {
     context.key == "DEBUG_MODE"

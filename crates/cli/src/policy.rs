@@ -4,8 +4,8 @@ use std::path::Path;
 
 const DEFAULT_POLICY: &str = include_str!("assets/default_policy.cedar");
 
-pub fn ensure_policy_exists(wrdn_pkg_dir: &Path) -> Result<()> {
-    let policy_path = wrdn_pkg_dir.join("policy.cedar");
+pub fn ensure_policy_exists(burr_pkg_dir: &Path) -> Result<()> {
+    let policy_path = burr_pkg_dir.join("policy.cedar");
     if !policy_path.exists() {
         fs::write(&policy_path, DEFAULT_POLICY)?;
         log::info!(

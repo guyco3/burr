@@ -1,4 +1,4 @@
-namespace Warden {
+namespace Burr {
     entity Module;
     
     entity Resource;

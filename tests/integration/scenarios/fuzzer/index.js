@@ -1,4 +1,4 @@
-import { fuzzer } from './.wrdn/guest/index.js';
+import { fuzzer } from './.burr/guest/index.js';
 
 async function runFuzzer() {
     console.log("--- Running Fuzzer ---");

@@ -1,4 +1,4 @@
-import { countWords, parseUppercase } from './.wrdn/guyco3_parser/index.js';
+import { countWords, parseUppercase } from './.burr/guyco3_parser/index.js';
 
 async function main() {
     const input = "hello world from WebAssembly component model!";

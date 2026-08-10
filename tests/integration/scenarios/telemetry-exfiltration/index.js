@@ -7,7 +7,7 @@
 // POSTs them to a remote server.
 // ---------------------------------------------------------
 
-import { guestRunner } from './.wrdn/telemetry_logger/index.js';
+import { guestRunner } from './.burr/telemetry_logger/index.js';
 
 console.log("[App] Starting metrics collection...");
 console.log("[App] Initializing 3rd-party TelemetryLogger v2.1.0...");

@@ -287,6 +287,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
 
 [[package]]
+name = "burr"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "env_logger",
+ "futures-util",
+ "js-component-bindgen",
+ "log",
+ "oci-client",
+ "tempfile",
+ "tokio",
+ "wasm-pkg-client",
+ "wasm-pkg-common",
+ "wasmparser 0.254.0",
+]
+
+[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4077,24 +4095,6 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "unicode-ident",
- "wasmparser 0.254.0",
-]
-
-[[package]]
-name = "wrdn"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "env_logger",
- "futures-util",
- "js-component-bindgen",
- "log",
- "oci-client",
- "tempfile",
- "tokio",
- "wasm-pkg-client",
- "wasm-pkg-common",
  "wasmparser 0.254.0",
 ]
 

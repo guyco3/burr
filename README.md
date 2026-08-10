@@ -1,19 +1,19 @@
-# wrdn
+# burr
 
-[![E2E Integration](https://github.com/guyco3/wrdn/actions/workflows/integration.yml/badge.svg)](https://github.com/guyco3/wrdn/actions/workflows/integration.yml)
+[![E2E Integration](https://github.com/guyco3/burr/actions/workflows/integration.yml/badge.svg)](https://github.com/guyco3/burr/actions/workflows/integration.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-> ⚠️ **Pre-Release Notice**: `wrdn` is currently in early alpha. Expect breaking changes in future releases as the WebAssembly Component Model (WASI) specifications mature.
+> ⚠️ **Pre-Release Notice**: `burr` is currently in early alpha. Expect breaking changes in future releases as the WebAssembly Component Model (WASI) specifications mature.
 
-`wrdn` is a security middleware for Node.js and Deno that allows you to safely run untrusted third-party WebAssembly (WASM) components. 
+`burr` is a security middleware for Node.js and Deno that allows you to safely run untrusted third-party WebAssembly (WASM) components. 
 
-By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `wrdn` wraps untrusted WASM modules in a secure, memory-safe virtualizer proxy written in 100% safe Rust. It strictly intercepts capabilities like filesystem, network, and environment access.
+By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `burr` wraps untrusted WASM modules in a secure, memory-safe virtualizer proxy written in 100% safe Rust. It strictly intercepts capabilities like filesystem, network, and environment access.
 
 ## Installation & Quick Start
 
-You can install the pre-compiled `wrdn` CLI binaries using our install script:
+You can install the pre-compiled `burr` CLI binaries using our install script:
 ```bash
-curl -sL https://raw.githubusercontent.com/guyco3/wrdn/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/guyco3/burr/main/install.sh | bash
 ```
 
 Alternatively, to build the CLI from source, you can clone the repository and run:
@@ -24,12 +24,12 @@ make install
 
 You can then install any WebAssembly Component from an OCI registry (like GHCR) or a local file:
 ```bash
-wrdn install ghcr.io/guyco3/parser:0.1.0
+burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This generates a `.wrdn` directory containing a secure JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
+This generates a `.burr` directory containing a secure JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
 ```javascript
-import { parser } from './.wrdn/guyco3_parser/index.js';
+import { parser } from './.burr/guyco3_parser/index.js';
 
 await parser.parseUppercase("hello world");
 ```
@@ -40,28 +40,28 @@ await parser.parseUppercase("hello world");
 
 ## How it Works
 
-When you install a component with `wrdn`, it performs a transparent architectural maneuver:
+When you install a component with `burr`, it performs a transparent architectural maneuver:
 
-1. **The Virtualizer**: It bundles our secure `wrdn` Rust proxy (compiled to `wasm32-wasip2`). This proxy exports the same exact WASI 0.3 interfaces as standard environments (e.g., `wasi:cli/environment`).
+1. **The Virtualizer**: It bundles our secure `burr` Rust proxy (compiled to `wasm32-wasip2`). This proxy exports the same exact WASI 0.3 interfaces as standard environments (e.g., `wasi:cli/environment`).
 2. **The Linkage**: During transpilation (using Bytecode Alliance's `jco`), it strictly maps all of the untrusted Guest's WASI imports into the Virtualizer, rather than out to the Node.js host.
 3. **The Sandbox**: The Guest is physically incapable of bypassing the Virtualizer. Every action it takes is evaluated against a dynamic `policy.cedar` ruleset before it is allowed to reach the host system.
 
-If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `wrdn` intercepts and blocks it:
+If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `burr` intercepts and blocks it:
 ```json
-[2026-08-10T06:03:28Z ERROR virtualizer::policy] [WARDEN AUDIT] {"timestamp": 1786341808, "module": "guest-module", "action": "fs_read", "resource": "filesystem", "details": {"path": "/etc/passwd"}, "decision": "DENY"}
+[2026-08-10T06:03:28Z ERROR virtualizer::policy] [BURR AUDIT] {"timestamp": 1786341808, "module": "guest-module", "action": "fs_read", "resource": "filesystem", "details": {"path": "/etc/passwd"}, "decision": "DENY"}
 ```
 
 For a deeper technical dive into the architecture, JSPI, and target compilation, read the [ARCHITECTURE.md](ARCHITECTURE.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
 
 ## Security Policies (Cedar)
 
-`wrdn` enforces a strict **Default-Deny** stance. The generated `policy.cedar` file starts completely empty (which evaluates to a strict `forbid`).
+`burr` enforces a strict **Default-Deny** stance. The generated `policy.cedar` file starts completely empty (which evaluates to a strict `forbid`).
 
 To execute any privileged action, explicit permissions must be written in `policy.cedar`. The policy engine uses the Principal ID `guest-module`.
 
 ### Supported Actions and Context Variables
 
-| Capability Area | Action (`Warden::Action::...`) | Available Context Variables (`context.<variable>`) | Description |
+| Capability Area | Action (`Burr::Action::...`) | Available Context Variables (`context.<variable>`) | Description |
 | :--- | :--- | :--- | :--- |
 | **Environment** | `"env_read"` | `key` (String) | Reading an environment variable |
 | **Environment** | `"cli_read_environment"` | None | Accessing the entire environment block |
@@ -81,8 +81,8 @@ To allow the component to read only the `APP_ENV` environment variable, but forb
 
 ```cedar
 permit(
-    principal == Warden::Module::"guest-module",
-    action == Warden::Action::"env_read",
+    principal == Burr::Module::"guest-module",
+    action == Burr::Action::"env_read",
     resource
 ) when {
     context.key == "APP_ENV"

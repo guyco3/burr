@@ -5,7 +5,7 @@ mod install;
 mod policy;
 
 #[derive(Parser)]
-#[command(name = "wrdn")]
+#[command(name = "burr")]
 #[command(about = "Safely run third party code as wasm modules", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -14,7 +14,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Install a third-party wasm module with the wrdn virtualizer
+    /// Install a third-party wasm module with the burr virtualizer
     Install {
         /// OCI reference to the guest wasm component (e.g. ghcr.io/org/package:tag)
         oci_ref: String,

@@ -7,7 +7,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT"
 
 echo "Building CLI..."
-cargo build -p wrdn --release
+cargo build -p burr --release
 export PATH="$(pwd)/target/release:$PATH"
 
 echo "Building Guest Wasm components..."
@@ -29,12 +29,12 @@ run_scenario() {
     
     echo "=== Testing $scenario ==="
     
-    # 1. wrdn install on the Host (so we don't mix OS/glibc binaries)
+    # 1. burr install on the Host (so we don't mix OS/glibc binaries)
     cd "$REPO_ROOT/tests/integration/scenarios/$scenario"
-    wrdn install "file://$REPO_ROOT/$guest_path"
+    burr install "file://$REPO_ROOT/$guest_path"
     
     # 2. Overwrite the policy inside the boundary
-    cp policy.cedar .wrdn/$pkg_name/policy.cedar
+    cp policy.cedar .burr/$pkg_name/policy.cedar
     
     # 3. Run the node app inside the Target container
     cd "$REPO_ROOT/tests/integration"
@@ -65,8 +65,8 @@ run_scenario "credential-harvester" "target/wasm32-wasip2/release/image_processo
 
 echo "=== Testing Fuzzer ==="
 cd "$REPO_ROOT/tests/integration/scenarios/fuzzer"
-wrdn install "file://$REPO_ROOT/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
-cp policy.cedar .wrdn/adversary_fuzzer/policy.cedar
+burr install "file://$REPO_ROOT/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
+cp policy.cedar .burr/adversary_fuzzer/policy.cedar
 
 cd "$REPO_ROOT/tests/integration"
 set +e

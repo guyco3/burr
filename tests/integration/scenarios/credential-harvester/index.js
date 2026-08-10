@@ -7,7 +7,7 @@
 // local SSH keys and exfiltrate them via raw TCP sockets.
 // ---------------------------------------------------------
 
-import { guestRunner } from './.wrdn/image_processor/index.js';
+import { guestRunner } from './.burr/image_processor/index.js';
 
 console.log("[App] Receiving image upload from user...");
 console.log("[App] Delegating to WasmImageProcessor v4.0.2 for optimization...");
