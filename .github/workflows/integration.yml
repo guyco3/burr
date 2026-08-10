@@ -101,9 +101,9 @@ jobs:
           
           test -f guest.wasm || (echo "Missing guest.wasm" && exit 1)
           test -f virtualizer.wasm || (echo "Missing virtualizer.wasm" && exit 1)
-          test -f warden_shim.js || (echo "Missing warden_shim.js" && exit 1)
+          test -f burr_shim.js || (echo "Missing burr_shim.js" && exit 1)
           test -f policy.cedar || (echo "Missing policy.cedar" && exit 1)
           test -d out-guest || (echo "Missing transpiled out-guest dir" && exit 1)
-          test -d out-warden || (echo "Missing transpiled out-warden dir" && exit 1)
+          test -d out-burr || (echo "Missing transpiled out-burr dir" && exit 1)
           
           echo "All artifacts verified successfully!"
