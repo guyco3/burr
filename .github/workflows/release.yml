@@ -14,19 +14,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: wrdn-linux-x86_64
+            artifact_name: burr-linux-x86_64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: wrdn-linux-aarch64
+            artifact_name: burr-linux-aarch64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: wrdn-macos-x86_64
+            artifact_name: burr-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: wrdn-macos-aarch64
+            artifact_name: burr-macos-aarch64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: wrdn-windows-x86_64.exe
+            artifact_name: burr-windows-x86_64.exe
 
     steps:
       - name: Checkout Code
@@ -41,14 +41,14 @@ jobs:
         if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
-      - name: Build wrdn
-        run: cargo build --release --target ${{ matrix.target }} -p wrdn
+      - name: Build burr
+        run: cargo build --release --target ${{ matrix.target }} -p burr
 
       - name: Upload Binary to Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release/wrdn${{ endsWith(matrix.artifact_name, '.exe') && '.exe' || '' }}
+          file: target/${{ matrix.target }}/release/burr${{ endsWith(matrix.artifact_name, '.exe') && '.exe' || '' }}
           asset_name: ${{ matrix.artifact_name }}
           tag: ${{ github.ref }}
           overwrite: true

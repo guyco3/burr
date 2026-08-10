@@ -60,43 +60,43 @@ jobs:
         run: |
           # Repository owner must be lowercase for OCI registries
           LOWER_OWNER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="ghcr.io/${LOWER_OWNER}/wrdn-test-guest:latest"
+          IMAGE="ghcr.io/${LOWER_OWNER}/burr-test-guest:latest"
           
           oras push $IMAGE \
             target/wasm32-wasip2/release/telemetry_logger.wasm:application/vnd.wasm.component.v1+wasm
 
-      - name: Build wrdn CLI
-        run: cargo build --release -p wrdn
+      - name: Build burr CLI
+        run: cargo build --release -p burr
 
-      - name: Run wrdn install with OCI Ref
+      - name: Run burr install with OCI Ref
         env:
           OWNER: ${{ github.repository_owner }}
         run: |
           LOWER_OWNER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="ghcr.io/${LOWER_OWNER}/wrdn-test-guest:latest"
+          IMAGE="ghcr.io/${LOWER_OWNER}/burr-test-guest:latest"
           
           mkdir e2e-test-oci
           cd e2e-test-oci
           
-          ../target/release/wrdn install $IMAGE
+          ../target/release/burr install $IMAGE
 
       - name: Verify OCI Installation
         env:
           OWNER: ${{ github.repository_owner }}
         run: |
           LOWER_OWNER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          PKG_NAME="${LOWER_OWNER}_wrdn-test-guest"
+          PKG_NAME="${LOWER_OWNER}_burr-test-guest"
           
           cd e2e-test-oci
           
-          if [ ! -d ".wrdn/$PKG_NAME" ]; then
-            echo "Expected installation directory .wrdn/$PKG_NAME not found!"
-            ls -la .wrdn || true
+          if [ ! -d ".burr/$PKG_NAME" ]; then
+            echo "Expected installation directory .burr/$PKG_NAME not found!"
+            ls -la .burr || true
             exit 1
           fi
           
-          echo "Verifying artifacts inside .wrdn/$PKG_NAME:"
-          cd ".wrdn/$PKG_NAME"
+          echo "Verifying artifacts inside .burr/$PKG_NAME:"
+          cd ".burr/$PKG_NAME"
           ls -la
           
           test -f guest.wasm || (echo "Missing guest.wasm" && exit 1)
