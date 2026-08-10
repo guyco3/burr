@@ -1,5 +1,8 @@
 # wrdn
 
+[![E2E Integration](https://github.com/guyco3/wrdn/actions/workflows/integration.yml/badge.svg)](https://github.com/guyco3/wrdn/actions/workflows/integration.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 > ⚠️ **Pre-Release Notice**: `wrdn` is currently in early alpha. Expect breaking changes in future releases as the WebAssembly Component Model (WASI) specifications mature.
 
 `wrdn` is a security middleware for Node.js and Deno that allows you to safely run untrusted third-party WebAssembly (WASM) components. 
@@ -8,12 +11,16 @@ By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `wr
 
 ## Installation & Quick Start
 
-Install the `wrdn` CLI:
+You can install the pre-compiled `wrdn` CLI binaries using our install script:
 ```bash
-./install.sh
+curl -sL https://raw.githubusercontent.com/guyco3/wrdn/main/install.sh | bash
 ```
 
-Ensure `~/.cargo/bin` is in your `PATH`.
+Alternatively, to build the CLI from source, you can clone the repository and run:
+```bash
+make install
+# or: cargo install --path crates/cli
+```
 
 You can then install any WebAssembly Component from an OCI registry (like GHCR) or a local file:
 ```bash
@@ -26,7 +33,7 @@ import { parser } from './.wrdn/guyco3_parser/index.js';
 
 await parser.parseUppercase("hello world");
 ```
-> **IMPORTANT**: You **must** run your Node.js application with `--experimental-wasm-jspi` because WASI 0.3 relies heavily on asynchronous Promises.
+> **IMPORTANT**: You **must** run your Node.js application with `--experimental-wasm-jspi` (requires Node.js 22+) because WASI 0.3 relies heavily on asynchronous Promises.
 > ```bash
 > node --experimental-wasm-jspi index.js
 > ```
@@ -38,6 +45,11 @@ When you install a component with `wrdn`, it performs a transparent architectura
 1. **The Virtualizer**: It bundles our secure `wrdn` Rust proxy (compiled to `wasm32-wasip2`). This proxy exports the same exact WASI 0.3 interfaces as standard environments (e.g., `wasi:cli/environment`).
 2. **The Linkage**: During transpilation (using Bytecode Alliance's `jco`), it strictly maps all of the untrusted Guest's WASI imports into the Virtualizer, rather than out to the Node.js host.
 3. **The Sandbox**: The Guest is physically incapable of bypassing the Virtualizer. Every action it takes is evaluated against a dynamic `policy.cedar` ruleset before it is allowed to reach the host system.
+
+If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `wrdn` intercepts and blocks it:
+```json
+[2026-08-10T06:03:28Z ERROR virtualizer::policy] [WARDEN AUDIT] {"timestamp": 1786341808, "module": "guest-module", "action": "fs_read", "resource": "filesystem", "details": {"path": "/etc/passwd"}, "decision": "DENY"}
+```
 
 For a deeper technical dive into the architecture, JSPI, and target compilation, read the [ARCHITECTURE.md](ARCHITECTURE.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
 
@@ -59,6 +71,7 @@ To execute any privileged action, explicit permissions must be written in `polic
 | **Filesystem** | `"fs_read"` | `path` (String) | Opening/reading a file or directory |
 | **Filesystem** | `"fs_write"` | `path` (String) | Modifying or creating a file or directory |
 | **Networking** | `"socket_connect"` | `ip` (String), `port` (Long) | Opening a TCP or UDP socket connection |
+| **Networking** | `"socket_bind"` | `ip` (String), `port` (Long) | Binding a raw TCP or UDP socket listener |
 | **Networking** | `"dns_lookup"` | `hostname` (String) | Resolving a domain name |
 | **HTTP** | `"http_outgoing_request"`| `url` (String), `method` (String) | Making an outbound HTTP request |
 
@@ -75,3 +88,7 @@ permit(
     context.key == "APP_ENV"
 };
 ```
+
+## Testing & Contributions
+
+Contributions and bug reports are welcome! For detailed instructions on building the project locally, running the test suites, and submitting pull requests, please read our [Contributing Guide](CONTRIBUTING.md).
