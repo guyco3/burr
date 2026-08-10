@@ -13,7 +13,7 @@ wasm-pkg-client = "0.16.0"
 oci-client = "0.17.0"
 futures-util = "0.3.31"
 wasm-pkg-common = "0.16.0"
-js-component-bindgen = "2.2.2"
+js-component-bindgen = { git = "https://github.com/bytecodealliance/jco.git", branch = "main" }
 wasmparser = "0.254.0"
 
 [build-dependencies]

@@ -7,15 +7,13 @@ struct Component;
 
 impl Guest for Component {
     fn parse_uppercase(input: String) -> String {
-        // Attempt to read the DEBUG_MODE environment variable.
-        // If wrdn's policy blocks this, it will panic or return None (depending on WASI's shim behavior).
-        let debug = wasi::cli::environment::get_environment()
+        let secret = wasi::cli::environment::get_environment()
             .into_iter()
-            .find(|(k, _)| k == "DEBUG_MODE")
+            .find(|(k, _)| k == "TUTORIAL_SECRET")
             .map(|(_, v)| v);
             
-        if debug.as_deref() == Some("1") {
-            println!("[guest] parse_uppercase called with input length: {}", input.len());
+        if secret.as_deref() == Some("1") {
+            println!("You found me!");
         }
 
         input.to_uppercase()

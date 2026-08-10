@@ -13,6 +13,7 @@ use wasm_pkg_common::package::{PackageRef, Version};
 
 const VIRTUALIZER_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/virtualizer.wasm"));
 const WARDEN_SHIM_JS: &str = include_str!("assets/warden_shim.js");
+const HTTP_SHIM_JS: &str = include_str!("assets/http_shim.js");
 
 #[derive(Debug, PartialEq)]
 pub enum ParsedReference {
@@ -184,11 +185,18 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
     let virt_out_dir = pkg_dir.join("out-warden");
     fs::create_dir_all(&virt_out_dir).await?;
     for (file_name, data) in virt_transpiled.files {
-        let out_path = virt_out_dir.join(file_name);
+        let out_path = virt_out_dir.join(&file_name);
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        fs::write(out_path, data).await?;
+        
+        if file_name.ends_with(".js") {
+            let mut new_data = b"if (!WebAssembly.Suspending) { WebAssembly.Suspending = class { constructor(fn) { return fn; } }; }\nif (!WebAssembly.promising) { WebAssembly.promising = function(fn) { return fn; }; }\n".to_vec();
+            new_data.extend_from_slice(&data);
+            fs::write(out_path, new_data).await?;
+        } else {
+            fs::write(out_path, data).await?;
+        }
     }
     Ok(())
 }
@@ -197,6 +205,9 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     log::info!("Creating module mapper shim...");
     let shim_path = pkg_dir.join("warden_shim.js");
     fs::write(&shim_path, WARDEN_SHIM_JS).await.context("Failed to write warden shim")?;
+
+    let http_shim_path = pkg_dir.join("http_shim.js");
+    fs::write(&http_shim_path, HTTP_SHIM_JS).await.context("Failed to write http shim")?;
 
     log::info!("Transpiling guest with mappings...");
     let shim_rel_path = "../warden_shim.js";
@@ -256,11 +267,18 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     let guest_out_dir = pkg_dir.join("out-guest");
     fs::create_dir_all(&guest_out_dir).await?;
     for (file_name, data) in guest_transpiled.files {
-        let out_path = guest_out_dir.join(file_name);
+        let out_path = guest_out_dir.join(&file_name);
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        fs::write(out_path, data).await?;
+        
+        if file_name.ends_with(".js") {
+            let mut new_data = b"if (!WebAssembly.Suspending) { WebAssembly.Suspending = class { constructor(fn) { return fn; } }; }\nif (!WebAssembly.promising) { WebAssembly.promising = function(fn) { return fn; }; }\n".to_vec();
+            new_data.extend_from_slice(&data);
+            fs::write(out_path, new_data).await?;
+        } else {
+            fs::write(out_path, data).await?;
+        }
     }
     Ok(())
 }
