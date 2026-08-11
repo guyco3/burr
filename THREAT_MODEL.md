@@ -8,7 +8,7 @@ burr uses the WASM Component Model to establish a strict boundary between the gu
 
 ## Trust Boundaries
 
-- **The Host (Trusted):** The underlying system running the Node.js/Deno runtime. burr guarantees that guest modules cannot access host resources unless explicitly permitted by the Cedar policy.
+- **The Host (Trusted):** The underlying system running the Node.js runtime. `burr` guarantees that guest modules cannot access host resources unless explicitly permitted by the Cedar policy.
 - **The Policy (Trusted):** The `policy.cedar` file dictates exactly what actions are allowed. The engine enforces a strict **default-deny** stance.
 - **The Guest (Untrusted):** The WebAssembly module being executed. We assume the guest is potentially malicious or compromised.
 

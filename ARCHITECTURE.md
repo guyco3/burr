@@ -1,41 +1,48 @@
 # Architecture Overview
 
-`burr` is designed to provide a secure execution environment for WebAssembly Component Model modules by acting as an intercepting proxy. It leverages WASI 0.3 interfaces to virtualize system capabilities.
+`burr` acts as an intercepting proxy for WebAssembly Component Model modules, leveraging WASI 0.3 interfaces to securely manage system capabilities.
 
-## Compilation Workflow
+## References
+- [WASI 0.3 and the WebAssembly Component Model](https://component-model.bytecodealliance.org/introduction.html)
+- [wit-bindgen Documentation](https://docs.rs/wit-bindgen/latest/wit_bindgen/)
+- [wit-bindgen Source Code](https://github.com/bytecodealliance/wit-bindgen)
 
-The workflow relies on a specific combination of tools and targets to ensure that the Component Model works correctly within JavaScript environments.
+## 1. Installation Flow
 
-### 1. The Targets and Bindings
-Both the internal `virtualizer` and the third-party guest components are compiled using the `wasm32-wasip2` target.
-- **`wasm32-wasip2`**: This Rust target produces Core WebAssembly that adheres to the WebAssembly System Interface (WASI) Preview 2/3 ABI. 
-- **`wit-bindgen` (v0.60.0+)**: Used to generate Rust bindings from `.wit` files. It translates high-level Component Model interfaces (like `wasi:cli/environment`) into Rust traits and structures. Version 0.60.0+ is strictly required to support the `async` functions and stream resources introduced in WASI 0.3.
+When you run `burr install`, the CLI fetches the target component and transpiles it so that all host-bound imports are rerouted into the `burr` virtualizer.
 
-### 2. The `burr` Virtualization Strategy
-When you run `burr install`, the CLI performs the following steps:
-1. **Fetch**: Downloads the `.wasm` component.
-2. **Virtualizer Injection**: The CLI contains a bundled `virtualizer.wasm` module. This module exports the same WASI 0.3 interfaces that standard environments provide (e.g., `wasi:cli/environment`, `wasi:filesystem/preopens`), but implements them internally using the Cedar Policy Engine.
-3. **Transpilation (`jco`)**: 
-   - Uses `@bytecodealliance/jco` (v1.26.1).
-   - The Virtualizer is transpiled first, mapping its host requirements to the Node.js native host environment.
-   - The Guest component is transpiled second. Crucially, the CLI instructs `jco` to **map the Guest's WASI imports to the transpiled Virtualizer**.
-   - **Result**: The Guest believes it is talking to the host OS, but it is actually talking to the Virtualizer.
+```mermaid
+flowchart TD
+    A[burr install <package>] --> B(wkg)
+    B -->|Fetch from OCI or local file| C[Guest .wasm]
+    D[CLI Bundled Assets] --> E[virtualizer.wasm]
+    C --> F(jco transpile)
+    E --> F
+    F -->|Map guest imports to virtualizer| G[.burr/ Directory]
+    G --> H[JavaScript Wrapper]
+    G --> I[policy.cedar]
+```
 
-### 3. JavaScript Promise Integration (JSPI)
-Because WASI 0.3 utilizes `async func` heavily for non-blocking I/O, the resulting JavaScript bindings rely on WebAssembly JSPI. This allows WebAssembly functions to suspend execution, wait for a JavaScript Promise (like reading a file or evaluating a Cedar policy), and resume seamlessly. 
+## 2. Action Flow (Runtime)
 
-This requires the `--experimental-wasm-jspi` flag in Node.js.
+At runtime, the guest component cannot interact with the host operating system directly. Every privileged WASI action is intercepted by the virtualizer and evaluated against the `policy.cedar` configuration.
 
-## The `wasm32-wasip2` Naming Quirk (It is NOT a Polyfill)
-You might wonder why we use the `--target=wasm32-wasip2` flag if `burr` is built around **WASI 0.3**. This is one of the most confusing parts of the current Rust WebAssembly ecosystem. 
+```mermaid
+flowchart LR
+    A[Guest] -->|e.g., wasi:filesystem.open-at| B[Virtualizer]
+    B -->|Evaluate Action against policy| C{Cedar Policy Engine}
+    C -->|ALLOW| D[Host Node.js Environment]
+    C -->|DENY| E[Error Returned to Guest]
+```
 
-**Here is what is actually happening:**
-1. **The `wasm32-wasip3` Target Problem**: Rust currently has a native `wasm32-wasip3` target, but it is classified as a "Tier 3" target. This means pre-compiled standard libraries do not exist yet, and using it would require every developer to manually compile the entire Rust standard library from source (a slow and brittle process).
-2. **Split Responsibilities**: To get around this, we use a hybrid approach. The Rust Compiler (`rustc`) uses the `wasm32-wasip2` target simply to provide the base WebAssembly core instructions, memory model, and standard library.
-3. **`wit-bindgen`'s Role**: `wit-bindgen` acts as the bridge. Because we use `wit-bindgen` (v0.60.0+) to generate our bindings, it completely bypasses the WASI 0.2 `pollable` concepts. Instead, it generates native WASI 0.3 Component Model types (like `future` and `stream`) and embeds them into a custom section of the output binary.
-4. **`jco`'s Role**: When `jco` transpiles the final `.wasm` file, it looks directly at the Component Model custom section generated by `wit-bindgen`. It sees a pure WASI 0.3 component and natively maps those async functions directly to JavaScript Promises via JSPI. 
+## 3. Compilation Target and bindings
 
-There are no WASI 0.2 polyfills running under the hood. The build steps use the `wasip2` target purely as a temporary vehicle to deliver a native WASI 0.3 payload.
+Both the internal `virtualizer` and third-party guest components are compiled using the `wasm32-wasip2` target.
+
+- **`wasm32-wasip2`**: Provides the base WebAssembly core instructions, memory model, and standard library.
+- **`wit-bindgen` (v0.60.0+)**: Generates Rust bindings from `.wit` files. It translates high-level Component Model interfaces into Rust traits and supports the `async` functions and stream resources introduced in WASI 0.3.
+
+There are no WASI 0.2 polyfills running under the hood. The build steps use the `wasip2` target purely as a temporary vehicle to deliver a native WASI 0.3 payload:
 
 > **Official Bytecode Alliance Documentation:**  
 > *"WASI 0.3 toolchain note. Rust’s wasm32-wasip3 target is currently Tier 3 with no prebuilt artifacts; building for it requires constructing the standard library from source. The 0.3 example on this page therefore uses the library/reactor pattern targeting wasm32-wasip2, where wit-bindgen’s async feature handles the 0.3 binding generation. There is no Rust-idiomatic 0.3 path for the fn main() command-component pattern yet."*
@@ -43,22 +50,15 @@ There are no WASI 0.2 polyfills running under the hood. The build steps use the 
 > — [Creating Runnable Components in Rust](https://component-model.bytecodealliance.org/language-support/creating-runnable-components/rust.html)
 
 ## 4. ESM Initialization Order & WASI Sandboxing
-The Virtualizer component (WASM) does not inherit broad host filesystem permissions natively due to the strict WASI sandbox enforced by `jco`. To evaluate security policies, the system must inject the external `policy.cedar` file into the WASI guest as an environment variable (`BURR_POLICY_CONTENT`).
 
-This injection is highly sensitive to the ECMAScript Module (ESM) execution order in Node.js. In ESM, imported modules are resolved and evaluated before the importing file executes its top-level code. 
-If the entry point uses:
+To evaluate security policies, the system injects the `policy.cedar` file into the WASI guest as an environment variable (`BURR_POLICY_CONTENT`).
+
+This injection is highly sensitive to the ECMAScript Module (ESM) execution order in Node.js, as imported modules are evaluated before the importing file executes its top-level code. If the entry point simply uses:
 ```javascript
 export * from './out-guest/guest.js';
 ```
-The WASI environment will be initialized during the `guest.js` evaluation phase, *before* any runtime environment variable modifications occur in the main script. To bypass this and guarantee successful policy injection, `burr` separates the Node.js filesystem reads into a discrete `setup.js` module. By explicitly importing `./setup.js` *before* exporting the guest module, Node.js is forced to execute the setup (and populate the environment) before initializing the WASM virtualizer.
+The WASI environment initializes *before* any environment variables can be injected. 
 
-## Security and Policy Engine
-The Virtualizer operates on a default-deny architecture powered by [Cedar Policy](https://www.cedarpolicy.com/). 
+To bypass this, `burr` separates the Node.js filesystem reads into a discrete `setup.js` module. By explicitly importing `./setup.js` before exporting the guest module, Node.js is forced to execute the setup and populate the environment before initializing the WASM virtualizer. 
 
-### Dependency Injection
-To ensure maximum reliability, the `PolicyEngine` (located in `crates/virtualizer/src/policy.rs`) is decoupled from the runtime environment.
-- **Production (`PolicyEngine::from_env`)**: At runtime, the CLI extracts the guest package name and loads the corresponding `policy.cedar` file from the `.burr/` directory.
-- **Testing (`PolicyEngine::new`)**: The engine is instantiated entirely in-memory by injecting the schema string and mock policy strings directly. This permits high-speed unit testing of the exact context mappings (e.g., verifying that a specific IP address correctly fails authorization) without any filesystem I/O or brittle test setups.
-
-### Stream Interception & WASI 0.3 Compatibility
-The virtualization proxy flawlessly intercepts native WASI 0.3 asynchronous streams (like `listen()` on `TcpSocket`) without resorting to unsafe memory mapping or transmutes. It uses `wit-bindgen 0.60`'s built-in `spawn_local` and handles `StreamResult` (Complete, Dropped, Cancelled) dynamically. This ensures that any `wasi:sockets` component-model resources are proxied smoothly and securely in the Wasm sandbox context.
+*Note: This specific ESM execution order behavior is continuously validated by our `policy-environment` integration test suite.*
