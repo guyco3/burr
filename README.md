@@ -1,13 +1,13 @@
 <div align="center">
 
-```text
-                        ██████╗ ██╗   ██╗██████╗ ██████╗ 
-                        ██╔══██╗██║   ██║██╔══██╗██╔══██╗
-                        ██████╔╝██║   ██║██████╔╝██████╔╝
-                        ██╔══██╗██║   ██║██╔══██╗██╔══██╗
-                        ██████╔╝╚██████╔╝██║  ██║██║  ██║
-                        ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
-```
+<pre style="display: inline-block; text-align: left; background: none; border: none;">
+██████╗ ██╗   ██╗██████╗ ██████╗ 
+██╔══██╗██║   ██║██╔══██╗██╔══██╗
+██████╔╝██║   ██║██████╔╝██████╔╝
+██╔══██╗██║   ██║██╔══██╗██╔══██╗
+██████╔╝╚██████╔╝██║  ██║██║  ██║
+╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+</pre>
 
 [![E2E Integration](https://github.com/guyco3/burr/actions/workflows/integration.yml/badge.svg)](https://github.com/guyco3/burr/actions/workflows/integration.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
