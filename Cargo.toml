@@ -4,7 +4,8 @@ members = [
     "crates/virtualizer",
     "tests/integration/scenarios/fuzzer/guest",
     "tests/integration/scenarios/telemetry-exfiltration/guest",
-    "tests/integration/scenarios/credential-harvester/guest"
+    "tests/integration/scenarios/credential-harvester/guest",
+    "tests/integration/scenarios/policy-environment/guest"
 ]
 
 resolver = "2"

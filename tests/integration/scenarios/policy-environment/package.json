@@ -1,0 +1,13 @@
+{
+  "name": "policy-environment",
+  "version": "1.0.0",
+  "description": "Integration test for ESM module execution order",
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-wasm-jspi index.js"
+  },
+  "dependencies": {
+    "@bytecodealliance/preview2-shim": "^0.20.1",
+    "@bytecodealliance/preview3-shim": "^0.2.2"
+  }
+}

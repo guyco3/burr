@@ -42,6 +42,16 @@ There are no WASI 0.2 polyfills running under the hood. The build steps use the 
 > 
 > — [Creating Runnable Components in Rust](https://component-model.bytecodealliance.org/language-support/creating-runnable-components/rust.html)
 
+## 4. ESM Initialization Order & WASI Sandboxing
+The Virtualizer component (WASM) does not inherit broad host filesystem permissions natively due to the strict WASI sandbox enforced by `jco`. To evaluate security policies, the system must inject the external `policy.cedar` file into the WASI guest as an environment variable (`BURR_POLICY_CONTENT`).
+
+This injection is highly sensitive to the ECMAScript Module (ESM) execution order in Node.js. In ESM, imported modules are resolved and evaluated before the importing file executes its top-level code. 
+If the entry point uses:
+```javascript
+export * from './out-guest/guest.js';
+```
+The WASI environment will be initialized during the `guest.js` evaluation phase, *before* any runtime environment variable modifications occur in the main script. To bypass this and guarantee successful policy injection, `burr` separates the Node.js filesystem reads into a discrete `setup.js` module. By explicitly importing `./setup.js` *before* exporting the guest module, Node.js is forced to execute the setup (and populate the environment) before initializing the WASM virtualizer.
+
 ## Security and Policy Engine
 The Virtualizer operates on a default-deny architecture powered by [Cedar Policy](https://www.cedarpolicy.com/). 
 

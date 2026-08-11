@@ -16,6 +16,7 @@ build-guests:
 	cd tests/integration/scenarios/telemetry-exfiltration/guest && cargo build --target=wasm32-wasip2 --release
 	cd tests/integration/scenarios/credential-harvester/guest && cargo build --target=wasm32-wasip2 --release
 	cd tests/integration/scenarios/fuzzer/guest && cargo build --target=wasm32-wasip2 --release
+	cd tests/integration/scenarios/policy-environment/guest && cargo build --target=wasm32-wasip2 --release
 	cd examples/tutorial-parser/guest && cargo build --target=wasm32-wasip2 --release
 
 # Run burr install for integration tests
@@ -24,6 +25,7 @@ build-int: build build-guests
 	cd tests/integration/scenarios/telemetry-exfiltration && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/target/wasm32-wasip2/release/telemetry_logger.wasm"
 	cd tests/integration/scenarios/credential-harvester && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/target/wasm32-wasip2/release/image_processor.wasm"
 	cd tests/integration/scenarios/fuzzer && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
+	cd tests/integration/scenarios/policy-environment && PATH="$(PWD)/target/release:$$PATH" $(BURR_BIN) install "file://$(PWD)/target/wasm32-wasip2/release/policy_env_test.wasm"
 
 # Run burr install for examples
 build-ex: build build-guests
@@ -50,6 +52,7 @@ clean:
 	rm -rf tests/integration/scenarios/telemetry-exfiltration/.burr
 	rm -rf tests/integration/scenarios/credential-harvester/.burr
 	rm -rf tests/integration/scenarios/fuzzer/.burr
+	rm -rf tests/integration/scenarios/policy-environment/.burr
 	rm -rf examples/tutorial-parser/.burr
 
 # Install burr locally
