@@ -5,13 +5,13 @@
 
 > ⚠️ **Pre-Release Notice**: `burr` is currently in early alpha. Expect breaking changes in future releases as the WebAssembly Component Model (WASI) specifications mature.
 
-`burr` is a security middleware for Node.js and Deno that allows you to safely run untrusted third-party WebAssembly (WASM) components. 
+`burr` is a security middleware for Node.js that allows you to safely run WASM components. 
 
-By leveraging the WebAssembly Component Model (WASI 0.3) and Cedar policies, `burr` wraps untrusted WASM modules in a secure, memory-safe virtualizer proxy written in 100% safe Rust. It strictly intercepts capabilities like filesystem, network, and environment access.
+By leveraging the Component Model and Cedar policies, `burr` wraps untrusted WASM modules in a secure, memory-safe virtualizer proxy. It strictly intercepts and authorizes capabilities like filesystem, network, and environment access.
 
 ## Installation & Quick Start
 
-You can install the pre-compiled `burr` CLI binaries using our install script:
+You can install the `burr` CLI binaries using the install script:
 ```bash
 curl -sL https://raw.githubusercontent.com/guyco3/burr/main/install.sh | bash
 ```
@@ -19,7 +19,6 @@ curl -sL https://raw.githubusercontent.com/guyco3/burr/main/install.sh | bash
 Alternatively, to build the CLI from source, you can clone the repository and run:
 ```bash
 make install
-# or: cargo install --path crates/cli
 ```
 
 You can then install any WebAssembly Component from an OCI registry (like GHCR) or a local file:
@@ -27,7 +26,7 @@ You can then install any WebAssembly Component from an OCI registry (like GHCR) 
 burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This generates a `.burr` directory containing a secure JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
+This generates a `.burr` directory containing a JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
 ```javascript
 import { parser } from './.burr/guyco3_parser/index.js';
 
@@ -40,11 +39,12 @@ await parser.parseUppercase("hello world");
 
 ## How it Works
 
-When you install a component with `burr`, it performs a transparent architectural maneuver:
+When you install a component with `burr`, it performs the following:
 
-1. **The Virtualizer**: It bundles our secure `burr` Rust proxy (compiled to `wasm32-wasip2`). This proxy exports the same exact WASI 0.3 interfaces as standard environments (e.g., `wasi:cli/environment`).
-2. **The Linkage**: During transpilation (using Bytecode Alliance's `jco`), it strictly maps all of the untrusted Guest's WASI imports into the Virtualizer, rather than out to the Node.js host.
-3. **The Sandbox**: The Guest is physically incapable of bypassing the Virtualizer. Every action it takes is evaluated against a dynamic `policy.cedar` ruleset before it is allowed to reach the host system.
+1. **Pull:** Downloads the requested WebAssembly component using `wkg`.
+2. **Map:** Transpiles the component with `jco`, rerouting its WASI imports (filesystem, network) into our secure Rust proxy (the "Virtualizer") instead of directly to the host.
+3. **Generate:** Creates a `.burr/<package>` directory containing the JavaScript wrapper and an empty `policy.cedar` file for you to configure.
+4. **Authorize:** At runtime, the Virtualizer intercepts all guest actions and evaluates them against your `policy.cedar`. Access is blocked unless explicitly permitted.
 
 If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `burr` intercepts and blocks it:
 ```json
