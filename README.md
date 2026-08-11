@@ -1,7 +1,18 @@
-# burr
+<div align="center">
+
+```text
+██████╗ ██╗   ██╗██████╗ ██████╗ 
+██╔══██╗██║   ██║██╔══██╗██╔══██╗
+██████╔╝██║   ██║██████╔╝██████╔╝
+██╔══██╗██║   ██║██╔══██╗██╔══██╗
+██████╔╝╚██████╔╝██║  ██║██║  ██║
+╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝
+```
 
 [![E2E Integration](https://github.com/guyco3/burr/actions/workflows/integration.yml/badge.svg)](https://github.com/guyco3/burr/actions/workflows/integration.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
 
 > ⚠️ **Pre-Release Notice**: `burr` is currently in early alpha. Expect breaking changes in future releases as the WebAssembly Component Model (WASI) specifications mature.
 
