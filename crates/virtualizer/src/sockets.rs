@@ -4,16 +4,12 @@ use crate::exports::wasi::sockets::types::*;
 use crate::policy::{authorize_and_execute, Action};
 use crate::VirtualizationProxy;
 
-
-
-
 pub struct ProxyTcpSocket {
     pub inner: crate::wasi::sockets::types::TcpSocket,
 }
 impl types::GuestTcpSocket for ProxyTcpSocket {
     fn create(address_family: IpAddressFamily) -> Result<TcpSocket, ErrorCode> {
-        let inner = crate::wasi::sockets::types::TcpSocket::create(address_family)
-        ?;
+        let inner = crate::wasi::sockets::types::TcpSocket::create(address_family)?;
         Ok(TcpSocket::new(ProxyTcpSocket { inner }))
     }
     fn bind(&self, local_address: IpSocketAddress) -> Result<(), ErrorCode> {
@@ -23,8 +19,7 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
             &[Action::SocketBind { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = self.inner
-                            .bind(local_address);
+                let res: Result<(), ErrorCode> = self.inner.bind(local_address);
                 res
             },
         )?
@@ -35,11 +30,7 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
         authorize_and_execute(
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
-            || async {
-                self.inner
-                            .connect(remote_address)
-                            .await
-            },
+            || async { self.inner.connect(remote_address).await },
         )?
         .await
     }
@@ -49,27 +40,31 @@ impl types::GuestTcpSocket for ProxyTcpSocket {
 
         wit_bindgen::rt::async_support::spawn_local(async move {
             let mut read_buf = Vec::new();
-            
+
             loop {
                 read_buf.clear();
-                let (status, mut host_sockets) = host_stream.read(read_buf).await; 
-                
+                let (status, mut host_sockets) = host_stream.read(read_buf).await;
+
                 for host_socket in host_sockets.drain(..) {
                     let proxy_socket = ProxyTcpSocket { inner: host_socket };
-                    
-                    let (write_status, _) = guest_writer.write(vec![TcpSocket::new(proxy_socket)]).await;
-                    if matches!(write_status, wit_bindgen::rt::async_support::StreamResult::Dropped) {
+
+                    let (write_status, _) =
+                        guest_writer.write(vec![TcpSocket::new(proxy_socket)]).await;
+                    if matches!(
+                        write_status,
+                        wit_bindgen::rt::async_support::StreamResult::Dropped
+                    ) {
                         return;
                     }
                 }
 
                 match status {
-                    wit_bindgen::rt::async_support::StreamResult::Dropped |
-                    wit_bindgen::rt::async_support::StreamResult::Cancelled => break,
+                    wit_bindgen::rt::async_support::StreamResult::Dropped
+                    | wit_bindgen::rt::async_support::StreamResult::Cancelled => break,
                     wit_bindgen::rt::async_support::StreamResult::Complete(_) => {
                         read_buf = host_sockets;
                         continue;
-                    },
+                    }
                 }
             }
         });
@@ -154,8 +149,7 @@ pub struct ProxyUdpSocket {
 }
 impl types::GuestUdpSocket for ProxyUdpSocket {
     fn create(address_family: IpAddressFamily) -> Result<UdpSocket, ErrorCode> {
-        let inner = crate::wasi::sockets::types::UdpSocket::create(address_family)
-        ?;
+        let inner = crate::wasi::sockets::types::UdpSocket::create(address_family)?;
         Ok(UdpSocket::new(ProxyUdpSocket { inner }))
     }
     fn bind(&self, local_address: IpSocketAddress) -> Result<(), ErrorCode> {
@@ -165,8 +159,7 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             &[Action::SocketBind { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = self.inner
-                            .bind(local_address);
+                let res: Result<(), ErrorCode> = self.inner.bind(local_address);
                 res
             },
         )?
@@ -178,8 +171,7 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
             &[Action::SocketConnect { ip: ip_str, port }],
             || ErrorCode::AccessDenied,
             || {
-                let res: Result<(), ErrorCode> = self.inner
-                            .connect(remote_address);
+                let res: Result<(), ErrorCode> = self.inner.connect(remote_address);
                 res
             },
         )?
@@ -192,10 +184,10 @@ impl types::GuestUdpSocket for ProxyUdpSocket {
         data: Vec<u8>,
         remote_address: Option<IpSocketAddress>,
     ) -> Result<(), ErrorCode> {
-        self.inner.send(data, remote_address.map(Into::into)).await
+        self.inner.send(data, remote_address).await
     }
     async fn receive(&self) -> Result<(Vec<u8>, IpSocketAddress), ErrorCode> {
-        self.inner.receive().await.map(|(d, a)| (d, a))
+        self.inner.receive().await
     }
     fn get_local_address(&self) -> Result<IpSocketAddress, ErrorCode> {
         self.inner.get_local_address()
@@ -265,9 +257,16 @@ pub(crate) fn format_ip_port(addr: &IpSocketAddress) -> (String, u16) {
         ),
         IpSocketAddress::Ipv6(v6) => (
             Ipv6Addr::new(
-                v6.address.0, v6.address.1, v6.address.2, v6.address.3,
-                v6.address.4, v6.address.5, v6.address.6, v6.address.7
-            ).to_string(),
+                v6.address.0,
+                v6.address.1,
+                v6.address.2,
+                v6.address.3,
+                v6.address.4,
+                v6.address.5,
+                v6.address.6,
+                v6.address.7,
+            )
+            .to_string(),
             v6.port,
         ),
     }

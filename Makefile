@@ -1,4 +1,4 @@
-.PHONY: all build build-guests build-ex build-int test test-unit test-int clean
+.PHONY: all build build-guests build-ex build-int test test-unit test-int clean lint
 
 # Ensure burr is built in release mode and in path
 BURR_BIN := $(PWD)/target/release/burr
@@ -44,6 +44,12 @@ test-int: build-int
 
 # Run all tests
 test: test-unit test-int
+
+# Run linter
+lint:
+	@echo "=== Running Linter and Formatter ==="
+	cargo fmt --all -- --check
+	cargo clippy --all-targets --all-features -- -D warnings
 
 # Clean generated targets and .burr directories
 clean:

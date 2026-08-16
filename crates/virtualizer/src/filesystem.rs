@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 use crate::exports::wasi::filesystem::preopens;
 use crate::exports::wasi::filesystem::types;
 use crate::exports::wasi::filesystem::types::*;
@@ -45,14 +36,11 @@ impl types::GuestDescriptor for ProxyDescriptor {
         length: Filesize,
         advice: Advice,
     ) -> Result<(), ErrorCode> {
-        let res: Result<(), ErrorCode> = self.inner
-                    .advise(offset, length, advice)
-                    .await;
+        let res: Result<(), ErrorCode> = self.inner.advise(offset, length, advice).await;
         res
     }
     async fn sync_data(&self) -> Result<(), ErrorCode> {
-        let res: Result<(), ErrorCode> =
-            self.inner.sync_data().await;
+        let res: Result<(), ErrorCode> = self.inner.sync_data().await;
         res
     }
 
@@ -60,8 +48,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         self.inner.get_flags().await
     }
     async fn get_type(&self) -> Result<DescriptorType, ErrorCode> {
-        let res: Result<DescriptorType, ErrorCode> =
-            self.inner.get_type().await;
+        let res: Result<DescriptorType, ErrorCode> = self.inner.get_type().await;
         res
     }
     async fn set_size(&self, size: Filesize) -> Result<(), ErrorCode> {
@@ -73,11 +60,8 @@ impl types::GuestDescriptor for ProxyDescriptor {
         data_modification_timestamp: NewTimestamp,
     ) -> Result<(), ErrorCode> {
         self.inner
-                    .set_times(
-                        data_access_timestamp,
-                        data_modification_timestamp,
-                    )
-                    .await
+            .set_times(data_access_timestamp, data_modification_timestamp)
+            .await
     }
     fn read_directory(
         &self,
@@ -110,11 +94,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsRead(path.clone())],
             || ErrorCode::Access,
-            || async {
-                self.inner
-                            .stat_at(path_flags, path)
-                            .await
-            },
+            || async { self.inner.stat_at(path_flags, path).await },
         )?
         .await
     }
@@ -130,13 +110,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
             || ErrorCode::Access,
             || async {
                 self.inner
-                            .set_times_at(
-                                path_flags,
-                                path,
-                                data_access_timestamp,
-                                data_modification_timestamp,
-                            )
-                            .await
+                    .set_times_at(
+                        path_flags,
+                        path,
+                        data_access_timestamp,
+                        data_modification_timestamp,
+                    )
+                    .await
             },
         )?
         .await
@@ -156,13 +136,13 @@ impl types::GuestDescriptor for ProxyDescriptor {
             || ErrorCode::Access,
             || async {
                 self.inner
-                            .link_at(
-                                old_path_flags,
-                                old_path,
-                                &new_descriptor.get::<ProxyDescriptor>().inner,
-                                new_path,
-                            )
-                            .await
+                    .link_at(
+                        old_path_flags,
+                        old_path,
+                        &new_descriptor.get::<ProxyDescriptor>().inner,
+                        new_path,
+                    )
+                    .await
             },
         )?
         .await
@@ -175,24 +155,21 @@ impl types::GuestDescriptor for ProxyDescriptor {
         flags: DescriptorFlags,
     ) -> Result<Descriptor, ErrorCode> {
         let mut actions = vec![Action::FsRead(path.clone())];
-        if flags.contains(DescriptorFlags::WRITE) || open_flags.contains(OpenFlags::CREATE) || open_flags.contains(OpenFlags::TRUNCATE) {
+        if flags.contains(DescriptorFlags::WRITE)
+            || open_flags.contains(OpenFlags::CREATE)
+            || open_flags.contains(OpenFlags::TRUNCATE)
+        {
             actions.push(Action::FsWrite(path.clone()));
         }
-        
+
         authorize_and_execute(
             &actions,
             || ErrorCode::Access,
             || async {
                 let inner = self
                     .inner
-                    .open_at(
-                        path_flags,
-                        path,
-                        open_flags,
-                        flags,
-                    )
-                    .await
-                    ?;
+                    .open_at(path_flags, path, open_flags, flags)
+                    .await?;
                 Ok(Descriptor::new(ProxyDescriptor { inner }))
             },
         )?
@@ -228,12 +205,12 @@ impl types::GuestDescriptor for ProxyDescriptor {
             || ErrorCode::Access,
             || async {
                 self.inner
-                            .rename_at(
-                                old_path,
-                                &new_descriptor.get::<ProxyDescriptor>().inner,
-                                new_path,
-                            )
-                            .await
+                    .rename_at(
+                        old_path,
+                        &new_descriptor.get::<ProxyDescriptor>().inner,
+                        new_path,
+                    )
+                    .await
             },
         )?
         .await
@@ -242,9 +219,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsWrite(new_path.clone())],
             || ErrorCode::Access,
-            || async {
-                self.inner.symlink_at(old_path, new_path).await
-            },
+            || async { self.inner.symlink_at(old_path, new_path).await },
         )?
         .await
     }
@@ -258,8 +233,8 @@ impl types::GuestDescriptor for ProxyDescriptor {
     }
     async fn is_same_object(&self, other: DescriptorBorrow<'_>) -> bool {
         self.inner
-                    .is_same_object(&other.get::<ProxyDescriptor>().inner)
-                    .await
+            .is_same_object(&other.get::<ProxyDescriptor>().inner)
+            .await
     }
     async fn metadata_hash(&self) -> Result<MetadataHashValue, ErrorCode> {
         self.inner.metadata_hash().await
@@ -272,11 +247,7 @@ impl types::GuestDescriptor for ProxyDescriptor {
         authorize_and_execute(
             &[Action::FsRead(path.clone())],
             || ErrorCode::Access,
-            || async {
-                self.inner
-                            .metadata_hash_at(path_flags, path)
-                            .await
-            },
+            || async { self.inner.metadata_hash_at(path_flags, path).await },
         )?
         .await
     }

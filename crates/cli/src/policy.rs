@@ -6,7 +6,7 @@ const DEFAULT_POLICY: &str = include_str!("assets/default_policy.cedar");
 
 pub fn ensure_policy_exists(policy_path: &Path) -> Result<()> {
     if !policy_path.exists() {
-        fs::write(&policy_path, DEFAULT_POLICY)?;
+        fs::write(policy_path, DEFAULT_POLICY)?;
         log::info!(
             "Generated default deny-all policy at {}",
             policy_path.display()

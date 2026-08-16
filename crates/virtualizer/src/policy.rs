@@ -6,6 +6,11 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[derive(Debug)]
+pub enum PolicyError {
+    Unauthorized,
+}
+
+#[derive(Debug)]
 pub enum Action {
     EnvRead(String),
     FsRead(String),
@@ -70,7 +75,7 @@ impl PolicyEngine {
         Self::new(&policy_str, schema_str, "guest-module".to_string())
     }
 
-    pub fn authorize(&self, action_req: &Action) -> Result<(), ()> {
+    pub fn authorize(&self, action_req: &Action) -> Result<(), PolicyError> {
         let principal = EntityUid::from_type_name_and_id(
             EntityTypeName::from_str("Burr::Module").unwrap(),
             EntityId::from_str(&self.principal_id).unwrap(),
@@ -119,7 +124,8 @@ impl PolicyEngine {
                 let mut map = HashMap::new();
                 map.insert(
                     "ip".to_string(),
-                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip)).unwrap(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip))
+                        .unwrap(),
                 );
                 map.insert(
                     "port".to_string(),
@@ -131,7 +137,8 @@ impl PolicyEngine {
                 let mut map = HashMap::new();
                 map.insert(
                     "ip".to_string(),
-                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip)).unwrap(),
+                    cedar_policy::RestrictedExpression::from_str(&format!("ip(\"{}\")", ip))
+                        .unwrap(),
                 );
                 map.insert(
                     "port".to_string(),
@@ -208,10 +215,10 @@ impl PolicyEngine {
             Decision::Allow => {
                 log::info!("[BURR AUDIT] {}", log);
                 Ok(())
-            },
+            }
             Decision::Deny => {
                 log::error!("[BURR AUDIT] {}", log);
-                Err(())
+                Err(PolicyError::Unauthorized)
             }
         }
     }
@@ -220,7 +227,7 @@ impl PolicyEngine {
 pub static POLICY_ENGINE: std::sync::OnceLock<PolicyEngine> = std::sync::OnceLock::new();
 
 pub fn get_engine() -> &'static PolicyEngine {
-    POLICY_ENGINE.get_or_init(|| PolicyEngine::from_env())
+    POLICY_ENGINE.get_or_init(PolicyEngine::from_env)
 }
 
 pub fn authorize_and_execute_with_engine<T, E, ErrMapper, F>(

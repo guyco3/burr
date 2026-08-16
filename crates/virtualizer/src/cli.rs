@@ -1,13 +1,13 @@
-use crate::policy::{Action, PolicyEngine};
+use crate::policy::Action;
 use crate::VirtualizationProxy;
 
 impl crate::exports::wasi::cli::exit::Guest for VirtualizationProxy {
-    fn exit(status: Result<(), ()>) -> () {
+    fn exit(status: Result<(), ()>) {
         let policy = crate::policy::get_engine();
         let _ = policy.authorize(&Action::CliExit);
         crate::wasi::cli::exit::exit(status)
     }
-    fn exit_with_code(status: u8) -> () {
+    fn exit_with_code(status: u8) {
         let policy = crate::policy::get_engine();
         let _ = policy.authorize(&Action::CliExit);
         crate::wasi::cli::exit::exit_with_code(status)
