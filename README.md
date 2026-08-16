@@ -37,7 +37,7 @@ You can then install any WebAssembly Component from an OCI registry (like GHCR) 
 burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This generates a `.burr` directory containing a JavaScript wrapper and a default-deny security policy. You can then import it natively in your Node.js app:
+This generates a hidden `.burr` directory containing a JavaScript wrapper and creates a default-deny security policy in a visible `policies/` directory. You can then import it natively in your Node.js app:
 ```javascript
 import { parser } from './.burr/guyco3_parser/index.js';
 
@@ -54,16 +54,15 @@ When you install a component with `burr`, it performs the following:
 
 1. **Pull:** Downloads the requested WebAssembly component using `wkg`.
 2. **Map:** Transpiles the component with `jco`, rerouting its WASI imports (filesystem, network) into our secure Rust proxy (the "Virtualizer") instead of directly to the host.
-3. **Generate:** Creates a `.burr/<package>` directory containing the JavaScript wrapper and an empty `policy.cedar` file for you to configure.
-4. **Authorize:** At runtime, the Virtualizer intercepts all guest actions and evaluates them against your `policy.cedar`. Access is blocked unless explicitly permitted.
+3. **Generate:** Creates a hidden `.burr/<package>` directory for the transpiled JavaScript and WASM, and creates an empty `policy.cedar` file in a root `policies/` directory for you to configure and commit to version control.
+4. **Authorize:** At runtime, the Virtualizer intercepts all guest actions and evaluates them against your policy. Access is blocked unless explicitly permitted.
 
 If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `burr` intercepts and blocks it:
 ```json
 [2026-08-10T06:03:28Z ERROR virtualizer::policy] [BURR AUDIT] {"timestamp": 1786341808, "module": "guest-module", "action": "fs_read", "resource": "filesystem", "details": {"path": "/etc/passwd"}, "decision": "DENY"}
 ```
 
-For a deeper technical dive into the architecture, JSPI, and target compilation, read the [ARCHITECTURE.md](ARCHITECTURE.md) and [THREAT_MODEL.md](THREAT_MODEL.md).
-
+For a deeper technical dive into the architecture, JSPI, and target compilation, read the [ARCHITECTURE.md](ARCHITECTURE.md).
 ## Security Policies (Cedar)
 
 `burr` enforces a strict **Default-Deny** stance. The generated `policy.cedar` file starts completely empty (which evaluates to a strict `forbid`).
@@ -99,6 +98,12 @@ permit(
     context.key == "APP_ENV"
 };
 ```
+
+## Building Your Own Components
+
+If you are compiling your own WebAssembly components to run under `burr`, **your guest module must import WASI 0.3+ interfaces** (e.g., `wasi:cli/environment@0.3.0`, `wasi:filesystem/types@0.3.0`). 
+
+WASI 0.2 `pollable` streams are fundamentally incompatible with `burr`'s asynchronous JSPI architecture. To target WASI 0.3 in Rust, use the `wasm32-wasip2` target combined with `wit-bindgen` (v0.60.0+) with the `async-spawn` feature enabled.
 
 ## Testing & Contributions
 

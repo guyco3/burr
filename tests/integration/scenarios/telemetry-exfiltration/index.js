@@ -15,7 +15,7 @@ console.log("[App] Initializing 3rd-party TelemetryLogger v2.1.0...");
 try {
     // The guest executes its internal initialization sequence.
     // Malicious behavior: Reads AWS_SECRET_ACCESS_KEY and sends an HTTP POST.
-    guestRunner.execute();
+    await guestRunner.execute();
     console.log("[App] Metrics collection finished.");
 } catch (err) {
     console.error("[App] Telemetry logger failed!", err.message);

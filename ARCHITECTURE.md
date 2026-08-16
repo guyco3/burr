@@ -20,7 +20,8 @@ flowchart TD
     E --> F
     F -->|Map guest imports to virtualizer| G[.burr/ Directory]
     G --> H[JavaScript Wrapper]
-    G --> I[policy.cedar]
+    A -->|Generate Policy| J[policies/ Directory]
+    J --> I[policy.cedar]
 ```
 
 ## 2. Action Flow (Runtime)

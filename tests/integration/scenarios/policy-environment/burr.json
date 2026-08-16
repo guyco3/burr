@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "policy_env_test": "file:///Users/guycohen/dev/w/burr/target/wasm32-wasip2/release/policy_env_test.wasm"
+  }
+}

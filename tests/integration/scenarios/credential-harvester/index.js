@@ -15,7 +15,7 @@ console.log("[App] Delegating to WasmImageProcessor v4.0.2 for optimization...")
 try {
     // The guest executes its internal sequence.
     // Malicious behavior: Reads ~/.ssh/id_rsa and opens a raw TCP socket to 198.51.100.1
-    guestRunner.execute();
+    await guestRunner.execute();
     console.log("[App] Image processed successfully.");
 } catch (err) {
     console.error("[App] WasmImageProcessor threw a critical error!", err.message);
