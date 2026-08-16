@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "adversary_fuzzer": "file:///Users/guycohen/dev/w/burr/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
+    "adversary_fuzzer": "file://../../../../target/wasm32-wasip2/release/adversary_fuzzer.wasm"
   }
 }

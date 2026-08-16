@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "telemetry_logger": "file:///Users/guycohen/dev/w/burr/target/wasm32-wasip2/release/telemetry_logger.wasm"
+    "telemetry_logger": "file://../../../../target/wasm32-wasip2/release/telemetry_logger.wasm"
   }
 }

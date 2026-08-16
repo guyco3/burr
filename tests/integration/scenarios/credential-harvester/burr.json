@@ -1,5 +1,5 @@
 {
   "dependencies": {
-    "image_processor": "file:///Users/guycohen/dev/w/burr/target/wasm32-wasip2/release/image_processor.wasm"
+    "image_processor": "file://../../../../target/wasm32-wasip2/release/image_processor.wasm"
   }
 }
