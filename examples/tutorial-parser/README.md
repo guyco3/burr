@@ -24,7 +24,7 @@ Install the guest module directly from the public GitHub Container Registry:
 burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This command downloads the component and automatically wraps it in the `burr` secure virtualizer. You will see a new `.burr/` directory created.
+This command downloads the component and automatically wraps it in the `burr` secure virtualizer. You will see a new `.burr/` directory created containing the transpiled WASM. Additionally, the CLI generated a `burr.json` manifest file to track this installation, and a `policies/` directory containing the default-deny policy!
 
 ## Step 2: Run the App (Blocked by Policy)
 
@@ -37,7 +37,7 @@ docker run --rm -v $(pwd):/app -w /app -e DEBUG_MODE=1 node:22-slim node --exper
 ```
 
 **Expected Output:**
-You should see that `count-words` succeeds, and `parse-uppercase` also succeeds. However, before it prints the uppercase output, you will see `[BURR AUDIT]` error logs! This is because `burr` intercepted the component's attempt to read environment variables (including `DEBUG_MODE`), and the default policy (`.burr/guyco3_parser/policy.cedar`) denies all actions. 
+You should see that `count-words` succeeds, and `parse-uppercase` also succeeds. However, before it prints the uppercase output, you will see `[BURR AUDIT]` error logs! This is because `burr` intercepted the component's attempt to read environment variables (including `DEBUG_MODE`), and the default policy (`policies/guyco3_parser_policy.cedar`) denies all actions. 
 
 By filtering out the environment variables instead of crashing the process, `burr` allows components to degrade gracefully!
 
@@ -45,7 +45,7 @@ By filtering out the environment variables instead of crashing the process, `bur
 
 To allow the component to execute successfully, we must explicitly permit it to read the `DEBUG_MODE` environment variable.
 
-Open `.burr/guyco3_parser/policy.cedar` and add the following Cedar rule:
+Open `policies/guyco3_parser_policy.cedar` and add the following Cedar rule:
 
 ```cedar
 permit(

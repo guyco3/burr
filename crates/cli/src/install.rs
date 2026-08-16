@@ -3,6 +3,7 @@ use anyhow::{Context, Result};
 use futures_util::TryStreamExt;
 use js_component_bindgen::{transpile, AsyncMode, TranspileOpts};
 use oci_client::{Client, Reference};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
@@ -14,6 +15,11 @@ use wasm_pkg_common::package::{PackageRef, Version};
 const VIRTUALIZER_WASM: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/virtualizer.wasm"));
 const BURR_SHIM_JS: &str = include_str!("assets/burr_shim.js");
 const HTTP_SHIM_JS: &str = include_str!("assets/http_shim.js");
+
+#[derive(Serialize, Deserialize, Default)]
+struct Manifest {
+    dependencies: HashMap<String, String>,
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ParsedReference {
@@ -283,7 +289,23 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn run_install(oci_ref: &str) -> Result<()> {
+pub async fn run_install_all() -> Result<()> {
+    let manifest_path = PathBuf::from("burr.json");
+    if !manifest_path.exists() {
+        anyhow::bail!("burr.json not found. Please run `burr install <oci_ref>` first to create a manifest.");
+    }
+    let content = fs::read_to_string(&manifest_path).await?;
+    let manifest: Manifest = serde_json::from_str(&content).context("Failed to parse burr.json")?;
+    
+    for (_, oci_ref) in manifest.dependencies {
+        log::info!("Installing {} from manifest...", oci_ref);
+        run_install(&oci_ref, false).await?;
+    }
+    
+    Ok(())
+}
+
+pub async fn run_install(oci_ref: &str, update_manifest: bool) -> Result<()> {
     let parsed = parse_reference(oci_ref)?;
     let pkg_name = match &parsed {
         ParsedReference::Local(_, pkg) => pkg.clone(),
@@ -295,6 +317,9 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     let pkg_dir = burr_dir.join(&pkg_name);
     fs::create_dir_all(&pkg_dir).await.context("Failed to create .burr pkg directory")?;
     
+    let policies_dir = PathBuf::from("policies");
+    fs::create_dir_all(&policies_dir).await.context("Failed to create policies directory")?;
+    
     let guest_wasm_path = pkg_dir.join("guest.wasm");
     fetch_guest(&parsed, oci_ref, &pkg_dir, &guest_wasm_path).await?;
 
@@ -302,24 +327,25 @@ pub async fn run_install(oci_ref: &str) -> Result<()> {
     transpile_virtualizer(&pkg_dir, &virtualizer_path).await?;
     transpile_guest(&pkg_dir, &guest_wasm_path).await?;
 
-    policy::ensure_policy_exists(&pkg_dir)?;
+    let policy_path = policies_dir.join(format!("{}_policy.cedar", pkg_name));
+    policy::ensure_policy_exists(&policy_path)?;
 
     log::info!("Generating Node.js entrypoint...");
     let setup_js_path = pkg_dir.join("setup.js");
-    let setup_js_content = r#"
+    let setup_js_content = format!(r#"
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import {{ fileURLToPath }} from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const policyPath = path.join(__dirname, 'policy.cedar');
-try {
+const policyPath = path.join(__dirname, '..', '..', 'policies', '{}_policy.cedar');
+try {{
     process.env.BURR_POLICY_CONTENT = fs.readFileSync(policyPath, 'utf8');
-} catch (e) {
+}} catch (e) {{
     // If the file cannot be read, the rust virtualizer will handle the missing policy
-}
+}}
 process.env.BURR_POLICY_PATH = policyPath;
-"#;
+"#, pkg_name);
     fs::write(&setup_js_path, setup_js_content).await.context("Failed to write setup.js")?;
 
     let index_js_path = pkg_dir.join("index.js");
@@ -328,6 +354,22 @@ process.env.BURR_POLICY_PATH = policyPath;
 
     log::info!("Installation complete for {}.", oci_ref);
     log::info!("To use this package, import from '.burr/{}/index.js'", pkg_name);
+
+    if update_manifest {
+        let manifest_path = PathBuf::from("burr.json");
+        let mut manifest: Manifest = if manifest_path.exists() {
+            let content = fs::read_to_string(&manifest_path).await.unwrap_or_else(|_| "{}".to_string());
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            Manifest::default()
+        };
+        
+        manifest.dependencies.insert(pkg_name.clone(), oci_ref.to_string());
+        
+        let content = serde_json::to_string_pretty(&manifest)?;
+        fs::write(&manifest_path, content).await.context("Failed to write burr.json")?;
+        log::info!("Updated burr.json");
+    }
 
     Ok(())
 }

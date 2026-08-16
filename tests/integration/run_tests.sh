@@ -31,12 +31,9 @@ run_scenario() {
     
     # 1. burr install on the Host (so we don't mix OS/glibc binaries)
     cd "$REPO_ROOT/tests/integration/scenarios/$scenario"
-    burr install "file://$REPO_ROOT/$guest_path"
+    burr install
     
-    # 2. Overwrite the policy inside the boundary
-    cp policy.cedar .burr/$pkg_name/policy.cedar
-    
-    # 3. Run the node app inside the Target container
+    # 2. Run the node app inside the Target container
     cd "$REPO_ROOT/tests/integration"
     set +e
     output=$(docker compose exec -T target bash -c "cd scenarios/$scenario && npm install && RUST_LOG=info node --experimental-wasm-jspi index.js" 2>&1)
@@ -47,11 +44,11 @@ run_scenario() {
     if echo "$output" | grep -q "ERR_UNSUPPORTED_ESM_URL_SCHEME"; then
         echo "FAIL ($scenario): Node.js crashed with ESM URL scheme error (WASI imports missing)."
         echo "$output"
-        return 1
+        exit 1
     elif ! echo "$output" | grep -qi "DENY"; then
         echo "FAIL ($scenario): Expected denial message not found in logs."
         echo "$output"
-        return 1
+        exit 1
     else
         echo "PASS ($scenario): Correctly blocked by policy."
     fi
@@ -65,8 +62,7 @@ run_scenario "credential-harvester" "target/wasm32-wasip2/release/image_processo
 
 echo "=== Testing Policy Environment (ESM Load Order) ==="
 cd "$REPO_ROOT/tests/integration/scenarios/policy-environment"
-burr install "file://$REPO_ROOT/target/wasm32-wasip2/release/policy_env_test.wasm"
-cp policy.cedar .burr/policy_env_test/policy.cedar
+burr install
 
 cd "$REPO_ROOT/tests/integration"
 set +e
@@ -87,8 +83,7 @@ fi
 
 echo "=== Testing Fuzzer ==="
 cd "$REPO_ROOT/tests/integration/scenarios/fuzzer"
-burr install "file://$REPO_ROOT/target/wasm32-wasip2/release/adversary_fuzzer.wasm"
-cp policy.cedar .burr/adversary_fuzzer/policy.cedar
+burr install
 
 cd "$REPO_ROOT/tests/integration"
 set +e
@@ -103,6 +98,7 @@ if [ $exit_code -ne 0 ]; then
         echo "FAIL (fuzzer): Fuzzer failed for unexpected reason."
         echo "$fuzzer_out"
     fi
+    exit 1
 else
     echo "PASS (fuzzer): Fuzzer completed with no breakout."
 fi

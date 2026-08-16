@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "policy_env_test": "file://../../../../target/wasm32-wasip2/release/policy_env_test.wasm"
+  }
+}

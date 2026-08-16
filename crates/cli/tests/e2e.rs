@@ -45,11 +45,17 @@ fn test_cli_builds_and_installs_locally() {
         burr_dir.join("burr_shim.js").exists(),
         "burr_shim.js missing"
     );
+    let policies_dir = temp_dir.path().join("policies");
     assert!(
-        burr_dir.join("policy.cedar").exists(),
-        "policy.cedar missing"
+        policies_dir.join("dummy_policy.cedar").exists(),
+        "dummy_policy.cedar missing"
     );
     assert!(burr_dir.join("index.js").exists(), "index.js missing");
+
+    let manifest_path = temp_dir.path().join("burr.json");
+    assert!(manifest_path.exists(), "burr.json missing");
+    let manifest_content = fs::read_to_string(&manifest_path).unwrap();
+    assert!(manifest_content.contains("\"dummy\": \"file://"));
 
     // Note: The jco transpilation might fail if it tries to parse the dummy wasm as a valid component,
     // but our main goal is to test the filesystem interactions and CLI orchestration.

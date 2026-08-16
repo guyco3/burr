@@ -17,7 +17,7 @@ enum Commands {
     /// Install a third-party wasm module with the burr virtualizer
     Install {
         /// OCI reference to the guest wasm component (e.g. ghcr.io/org/package:tag)
-        oci_ref: String,
+        oci_ref: Option<String>,
     },
 }
 
@@ -32,7 +32,11 @@ async fn main() -> Result<()> {
 
     match &cli.command {
         Commands::Install { oci_ref } => {
-            install::run_install(oci_ref).await?;
+            if let Some(ref_str) = oci_ref {
+                install::run_install(ref_str, true).await?;
+            } else {
+                install::run_install_all().await?;
+            }
         }
     }
 
