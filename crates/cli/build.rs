@@ -14,7 +14,7 @@ fn main() {
 
     let target_dir = out_dir.clone() + "/virt_target";
     let status = Command::new("cargo")
-        .args(&["build", "--target=wasm32-wasip2", "--release"])
+        .args(["build", "--target=wasm32-wasip2", "--release"])
         .env("CARGO_TARGET_DIR", &target_dir)
         .current_dir(&virtualizer_dir)
         .status()

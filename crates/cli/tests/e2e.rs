@@ -10,7 +10,7 @@ fn test_cli_builds_and_installs_locally() {
 
     // Test that the CLI builds successfully (this implicitly tests build.rs logic)
     let status = Command::new("cargo")
-        .args(&["build"])
+        .args(["build"])
         .current_dir(&cli_dir)
         .status()
         .expect("Failed to run cargo build for cli");
@@ -25,7 +25,7 @@ fn test_cli_builds_and_installs_locally() {
 
     let bin_path = env!("CARGO_BIN_EXE_burr");
     let status = Command::new(bin_path)
-        .args(&["install", &format!("file://{}", dummy_wasm_path.display())])
+        .args(["install", &format!("file://{}", dummy_wasm_path.display())])
         .current_dir(temp_dir.path())
         .status()
         .expect("Failed to run burr install");

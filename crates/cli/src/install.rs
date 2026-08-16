@@ -43,16 +43,13 @@ pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
             Some((name, ver)) => (name, Some(ver)),
             None => (oci_ref, None),
         };
-        
+
         if let Ok(package_ref) = PackageRef::from_str(pkg_str) {
             let version = match ver_str {
                 Some(v) => Some(Version::parse(v).context("Invalid version")?),
                 None => None,
             };
-            let pkg_name = package_ref
-                .to_string()
-                .replace(":", "_")
-                .replace("/", "_");
+            let pkg_name = package_ref.to_string().replace(":", "_").replace("/", "_");
             Ok(ParsedReference::Wkg(package_ref, version, pkg_name))
         } else {
             let reference: Reference = oci_ref.parse().context("Invalid OCI reference")?;
@@ -62,10 +59,17 @@ pub fn parse_reference(oci_ref: &str) -> Result<ParsedReference> {
     }
 }
 
-async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
+async fn fetch_guest(
+    parsed: &ParsedReference,
+    oci_ref: &str,
+    _pkg_dir: &Path,
+    guest_wasm_path: &Path,
+) -> Result<()> {
     match parsed {
         ParsedReference::Local(local_path, _) => {
-            fs::copy(&local_path, &guest_wasm_path).await.context("Failed to copy local guest wasm")?;
+            fs::copy(&local_path, &guest_wasm_path)
+                .await
+                .context("Failed to copy local guest wasm")?;
             log::info!("Using local guest wasm from {}...", local_path.display());
         }
         ParsedReference::Oci(reference, _) => {
@@ -73,7 +77,7 @@ async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, g
             let client = Client::new(oci_client::client::ClientConfig::default());
             let image_data = client
                 .pull(
-                    &reference,
+                    reference,
                     &oci_client::secrets::RegistryAuth::Anonymous,
                     vec![
                         "application/vnd.wasm.component.v1+wasm",
@@ -84,12 +88,18 @@ async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, g
                 .await
                 .context("Failed to pull OCI artifact")?;
 
-            let wasm_layer = image_data.layers.iter().find(|l| {
-                l.media_type == "application/vnd.wasm.component.v1+wasm" || 
-                l.media_type == "application/wasm"
-            }).context("No WASM layer found in OCI artifact")?;
+            let wasm_layer = image_data
+                .layers
+                .iter()
+                .find(|l| {
+                    l.media_type == "application/vnd.wasm.component.v1+wasm"
+                        || l.media_type == "application/wasm"
+                })
+                .context("No WASM layer found in OCI artifact")?;
 
-            fs::write(&guest_wasm_path, &wasm_layer.data).await.context("Failed to write guest wasm")?;
+            fs::write(&guest_wasm_path, &wasm_layer.data)
+                .await
+                .context("Failed to write guest wasm")?;
         }
         ParsedReference::Wkg(package_ref, version_opt, _) => {
             log::info!("Resolving Wasm package {}...", oci_ref);
@@ -101,26 +111,26 @@ async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, g
                 Some(ref ver) => ver.clone(),
                 None => {
                     log::info!("No version specified, fetching latest...");
-                    let versions = client.list_all_versions(&package_ref).await.context("Failed to list versions")?;
-                    versions.into_iter()
+                    let versions = client
+                        .list_all_versions(package_ref)
+                        .await
+                        .context("Failed to list versions")?;
+                    versions
+                        .into_iter()
                         .filter_map(|vi| (!vi.yanked).then_some(vi.version))
                         .max()
                         .context("No releases found")?
                 }
             };
 
-            log::info!(
-                "Pulling Wasm component {}@{}...",
-                package_ref,
-                version
-            );
+            log::info!("Pulling Wasm component {}@{}...", package_ref, version);
             let release = client
-                .get_release(&package_ref, &version)
+                .get_release(package_ref, &version)
                 .await
                 .context("Failed to get release details")?;
 
             let mut stream = client
-                .stream_content(&package_ref, &release)
+                .stream_content(package_ref, &release)
                 .await
                 .context("Failed to stream component")?;
             let mut file = tokio::fs::File::create(&guest_wasm_path)
@@ -142,48 +152,57 @@ async fn fetch_guest(parsed: &ParsedReference, oci_ref: &str, _pkg_dir: &Path, g
 
 async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Result<()> {
     log::info!("Writing embedded virtualizer...");
-    fs::write(&virtualizer_path, VIRTUALIZER_WASM).await.context("Failed to write virtualizer wasm")?;
+    fs::write(&virtualizer_path, VIRTUALIZER_WASM)
+        .await
+        .context("Failed to write virtualizer wasm")?;
 
     log::info!("Transpiling virtualizer...");
-    let virt_wasm = fs::read(&virtualizer_path).await.context("Failed to read virtualizer wasm")?;
+    let virt_wasm = fs::read(&virtualizer_path)
+        .await
+        .context("Failed to read virtualizer wasm")?;
 
     let mut virt_map = HashMap::new();
     let parser = wasmparser::Parser::new(0);
     for payload in parser.parse_all(&virt_wasm) {
         if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
-            for import in s {
-                if let Ok(import) = import {
-                    let name = import.name.name;
-                    if name.starts_with("wasi:") && !virt_map.contains_key(name) {
-                        if let Some(slash_idx) = name.find('/') {
-                            let pkg = &name[5..slash_idx];
-                            let interface_end = name.find('@').unwrap_or(name.len());
-                            let interface = &name[slash_idx + 1..interface_end];
-                            
-                            let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
-                            
-                            let shim_pkg = if version.starts_with("0.3.") {
-                                "preview3-shim"
-                            } else {
-                                "preview2-shim"
-                            };
-                            
-                            let shim_name = format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
-                            virt_map.insert(name.to_string(), shim_name);
-                        }
+            for import in s.into_iter().flatten() {
+                let name = import.name.name;
+                if name.starts_with("wasi:") && !virt_map.contains_key(name) {
+                    if let Some(slash_idx) = name.find('/') {
+                        let pkg = &name[5..slash_idx];
+                        let interface_end = name.find('@').unwrap_or(name.len());
+                        let interface = &name[slash_idx + 1..interface_end];
+
+                        let version = if interface_end < name.len() {
+                            &name[interface_end + 1..]
+                        } else {
+                            ""
+                        };
+
+                        let shim_pkg = if version.starts_with("0.3.") {
+                            "preview3-shim"
+                        } else {
+                            "preview2-shim"
+                        };
+
+                        let shim_name =
+                            format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
+                        virt_map.insert(name.to_string(), shim_name);
                     }
                 }
             }
         }
     }
 
-    let mut virt_opts = TranspileOpts::default();
-    virt_opts.name = "virtualizer".to_string();
-    virt_opts.map = Some(virt_map);
-    virt_opts.async_mode = Some(AsyncMode::JavaScriptPromiseIntegration {
-        imports: vec![],
-        exports: vec![],
-    });
+    let virt_opts = TranspileOpts {
+        name: "virtualizer".to_string(),
+        map: Some(virt_map),
+        async_mode: Some(AsyncMode::JavaScriptPromiseIntegration {
+            imports: vec![],
+            exports: vec![],
+        }),
+        ..Default::default()
+    };
 
     let virt_transpiled =
         transpile(&virt_wasm, virt_opts).context("Failed to transpile virtualizer")?;
@@ -195,7 +214,7 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        
+
         if file_name.ends_with(".js") {
             let mut new_data = b"if (!WebAssembly.Suspending) { WebAssembly.Suspending = class { constructor(fn) { return fn; } }; }\nif (!WebAssembly.promising) { WebAssembly.promising = function(fn) { return fn; }; }\n".to_vec();
             new_data.extend_from_slice(&data);
@@ -210,65 +229,80 @@ async fn transpile_virtualizer(pkg_dir: &Path, virtualizer_path: &Path) -> Resul
 async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
     log::info!("Creating module mapper shim...");
     let shim_path = pkg_dir.join("burr_shim.js");
-    fs::write(&shim_path, BURR_SHIM_JS).await.context("Failed to write burr shim")?;
+    fs::write(&shim_path, BURR_SHIM_JS)
+        .await
+        .context("Failed to write burr shim")?;
 
     let http_shim_path = pkg_dir.join("http_shim.js");
-    fs::write(&http_shim_path, HTTP_SHIM_JS).await.context("Failed to write http shim")?;
+    fs::write(&http_shim_path, HTTP_SHIM_JS)
+        .await
+        .context("Failed to write http shim")?;
 
     log::info!("Transpiling guest with mappings...");
     let shim_rel_path = "../burr_shim.js";
     let mut guest_map = HashMap::new();
-    
-    let guest_wasm = fs::read(&guest_wasm_path).await.context("Failed to read guest wasm")?;
 
-    // Dynamically map unhandled wasi: imports. 
+    let guest_wasm = fs::read(&guest_wasm_path)
+        .await
+        .context("Failed to read guest wasm")?;
+
+    // Dynamically map unhandled wasi: imports.
     // Route security-critical ones to burr_shim.js, others to preview2/3-shim.
     let parser = wasmparser::Parser::new(0);
     for payload in parser.parse_all(&guest_wasm) {
         if let Ok(wasmparser::Payload::ComponentImportSection(s)) = payload {
-            for import in s {
-                if let Ok(import) = import {
-                    let name = import.name.name;
-                    if name.starts_with("wasi:") && !guest_map.contains_key(name) {
-                        if let Some(slash_idx) = name.find('/') {
-                            let pkg = &name[5..slash_idx];
-                            let interface_end = name.find('@').unwrap_or(name.len());
-                            let interface = &name[slash_idx + 1..interface_end];
-                            
-                            // Map security-critical interfaces to our shim regardless of version
-                            if (pkg == "cli" && interface == "environment") ||
-                               (pkg == "filesystem" && (interface == "preopens" || interface == "types")) ||
-                               (pkg == "sockets" && (interface == "types" || interface == "ip-name-lookup")) {
-                                guest_map.insert(name.to_string(), shim_rel_path.to_string());
-                                continue;
-                            }
-                            
-                            let version = if interface_end < name.len() { &name[interface_end + 1..] } else { "" };
-                            
-                            let shim_pkg = if version.starts_with("0.3.") {
-                                "preview3-shim"
-                            } else {
-                                "preview2-shim"
-                            };
-                            
-                            let shim_name = format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
-                            guest_map.insert(name.to_string(), shim_name);
+            for import in s.into_iter().flatten() {
+                let name = import.name.name;
+                if name.starts_with("wasi:") && !guest_map.contains_key(name) {
+                    if let Some(slash_idx) = name.find('/') {
+                        let pkg = &name[5..slash_idx];
+                        let interface_end = name.find('@').unwrap_or(name.len());
+                        let interface = &name[slash_idx + 1..interface_end];
+
+                        // Map security-critical interfaces to our shim regardless of version
+                        if (pkg == "cli" && interface == "environment")
+                            || (pkg == "filesystem"
+                                && (interface == "preopens" || interface == "types"))
+                            || (pkg == "sockets"
+                                && (interface == "types" || interface == "ip-name-lookup"))
+                        {
+                            guest_map.insert(name.to_string(), shim_rel_path.to_string());
+                            continue;
                         }
+
+                        let version = if interface_end < name.len() {
+                            &name[interface_end + 1..]
+                        } else {
+                            ""
+                        };
+
+                        let shim_pkg = if version.starts_with("0.3.") {
+                            "preview3-shim"
+                        } else {
+                            "preview2-shim"
+                        };
+
+                        let shim_name =
+                            format!("@bytecodealliance/{}/{}#{}", shim_pkg, pkg, interface);
+                        guest_map.insert(name.to_string(), shim_name);
                     }
                 }
             }
         }
     }
 
-    let mut guest_opts = TranspileOpts::default();
-    guest_opts.name = "guest".to_string();
-    guest_opts.map = Some(guest_map);
-    guest_opts.async_mode = Some(AsyncMode::JavaScriptPromiseIntegration {
-        imports: vec![],
-        exports: vec![],
-    });
+    let guest_opts = TranspileOpts {
+        name: "guest".to_string(),
+        map: Some(guest_map),
+        async_mode: Some(AsyncMode::JavaScriptPromiseIntegration {
+            imports: vec![],
+            exports: vec![],
+        }),
+        ..Default::default()
+    };
 
-    let guest_transpiled = transpile(&guest_wasm, guest_opts).context("Failed to transpile guest")?;
+    let guest_transpiled =
+        transpile(&guest_wasm, guest_opts).context("Failed to transpile guest")?;
 
     let guest_out_dir = pkg_dir.join("out-guest");
     fs::create_dir_all(&guest_out_dir).await?;
@@ -277,7 +311,7 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
         if let Some(parent) = out_path.parent() {
             fs::create_dir_all(parent).await?;
         }
-        
+
         if file_name.ends_with(".js") {
             let mut new_data = b"if (!WebAssembly.Suspending) { WebAssembly.Suspending = class { constructor(fn) { return fn; } }; }\nif (!WebAssembly.promising) { WebAssembly.promising = function(fn) { return fn; }; }\n".to_vec();
             new_data.extend_from_slice(&data);
@@ -292,16 +326,18 @@ async fn transpile_guest(pkg_dir: &Path, guest_wasm_path: &Path) -> Result<()> {
 pub async fn run_install_all() -> Result<()> {
     let manifest_path = PathBuf::from("burr.json");
     if !manifest_path.exists() {
-        anyhow::bail!("burr.json not found. Please run `burr install <oci_ref>` first to create a manifest.");
+        anyhow::bail!(
+            "burr.json not found. Please run `burr install <oci_ref>` first to create a manifest."
+        );
     }
     let content = fs::read_to_string(&manifest_path).await?;
     let manifest: Manifest = serde_json::from_str(&content).context("Failed to parse burr.json")?;
-    
+
     for (_, oci_ref) in manifest.dependencies {
         log::info!("Installing {} from manifest...", oci_ref);
         run_install(&oci_ref, false).await?;
     }
-    
+
     Ok(())
 }
 
@@ -315,11 +351,15 @@ pub async fn run_install(oci_ref: &str, update_manifest: bool) -> Result<()> {
 
     let burr_dir = PathBuf::from(".burr");
     let pkg_dir = burr_dir.join(&pkg_name);
-    fs::create_dir_all(&pkg_dir).await.context("Failed to create .burr pkg directory")?;
-    
+    fs::create_dir_all(&pkg_dir)
+        .await
+        .context("Failed to create .burr pkg directory")?;
+
     let policies_dir = PathBuf::from("policies");
-    fs::create_dir_all(&policies_dir).await.context("Failed to create policies directory")?;
-    
+    fs::create_dir_all(&policies_dir)
+        .await
+        .context("Failed to create policies directory")?;
+
     let guest_wasm_path = pkg_dir.join("guest.wasm");
     fetch_guest(&parsed, oci_ref, &pkg_dir, &guest_wasm_path).await?;
 
@@ -332,7 +372,8 @@ pub async fn run_install(oci_ref: &str, update_manifest: bool) -> Result<()> {
 
     log::info!("Generating Node.js entrypoint...");
     let setup_js_path = pkg_dir.join("setup.js");
-    let setup_js_content = format!(r#"
+    let setup_js_content = format!(
+        r#"
 import fs from 'fs';
 import path from 'path';
 import {{ fileURLToPath }} from 'url';
@@ -345,29 +386,44 @@ try {{
     // If the file cannot be read, the rust virtualizer will handle the missing policy
 }}
 process.env.BURR_POLICY_PATH = policyPath;
-"#, pkg_name);
-    fs::write(&setup_js_path, setup_js_content).await.context("Failed to write setup.js")?;
+"#,
+        pkg_name
+    );
+    fs::write(&setup_js_path, setup_js_content)
+        .await
+        .context("Failed to write setup.js")?;
 
     let index_js_path = pkg_dir.join("index.js");
     let index_js_content = include_str!("assets/index.js");
-    fs::write(&index_js_path, index_js_content).await.context("Failed to write index.js entrypoint")?;
+    fs::write(&index_js_path, index_js_content)
+        .await
+        .context("Failed to write index.js entrypoint")?;
 
     log::info!("Installation complete for {}.", oci_ref);
-    log::info!("To use this package, import from '.burr/{}/index.js'", pkg_name);
+    log::info!(
+        "To use this package, import from '.burr/{}/index.js'",
+        pkg_name
+    );
 
     if update_manifest {
         let manifest_path = PathBuf::from("burr.json");
         let mut manifest: Manifest = if manifest_path.exists() {
-            let content = fs::read_to_string(&manifest_path).await.unwrap_or_else(|_| "{}".to_string());
+            let content = fs::read_to_string(&manifest_path)
+                .await
+                .unwrap_or_else(|_| "{}".to_string());
             serde_json::from_str(&content).unwrap_or_default()
         } else {
             Manifest::default()
         };
-        
-        manifest.dependencies.insert(pkg_name.clone(), oci_ref.to_string());
-        
+
+        manifest
+            .dependencies
+            .insert(pkg_name.clone(), oci_ref.to_string());
+
         let content = serde_json::to_string_pretty(&manifest)?;
-        fs::write(&manifest_path, content).await.context("Failed to write burr.json")?;
+        fs::write(&manifest_path, content)
+            .await
+            .context("Failed to write burr.json")?;
         log::info!("Updated burr.json");
     }
 

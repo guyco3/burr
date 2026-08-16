@@ -15,9 +15,9 @@ impl Guest for Component {
         // Try to read DEBUG_MODE environment variable
         // The policy will explicitly permit this, so it should succeed without DENY logs
         let envs = wasi::cli::environment::get_environment();
-        
+
         let has_debug = envs.iter().any(|(k, _)| k == "DEBUG_MODE");
-        
+
         if has_debug {
             println!("[PolicyEnvTest] Successfully read DEBUG_MODE environment variable.");
         } else {
