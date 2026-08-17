@@ -13,6 +13,7 @@ When you run `burr install <package>`, the CLI:
 1. Fetches the target component from an OCI registry or local file.
 2. Transpiles it so that all host-bound imports are rerouted into the `burr` virtualizer.
 3. Updates your `burr.json` manifest file to track the dependency.
+4. Generates a default-deny policy file inside a root `policies/` directory.
 
 When you run `burr install` with no arguments, the CLI installs all components listed in your `burr.json` file.
 
