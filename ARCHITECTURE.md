@@ -9,19 +9,25 @@
 
 ## 1. Installation Flow
 
-When you run `burr install`, the CLI fetches the target component and transpiles it so that all host-bound imports are rerouted into the `burr` virtualizer.
+When you run `burr install <package>`, the CLI:
+1. Fetches the target component from an OCI registry or local file.
+2. Transpiles it so that all host-bound imports are rerouted into the `burr` virtualizer.
+3. Updates your `burr.json` manifest file to track the dependency.
+
+When you run `burr install` with no arguments, the CLI installs all components listed in your `burr.json` file.
 
 ```mermaid
 flowchart TD
-    A[burr install <package>] --> B(wkg)
-    B -->|Fetch from OCI or local file| C[Guest .wasm]
-    D[CLI Bundled Assets] --> E[virtualizer.wasm]
-    C --> F(jco transpile)
-    E --> F
-    F -->|Map guest imports to virtualizer| G[.burr/ Directory]
-    G --> H[JavaScript Wrapper]
+    A[burr install <package>] --> B(Update burr.json)
+    B --> C(wkg)
+    C -->|Fetch from OCI or local file| D[Guest .wasm]
+    E[CLI Bundled Assets] --> F[virtualizer.wasm]
+    D --> G(jco transpile)
+    F --> G
+    G -->|Map guest imports to virtualizer| H[.burr/ Directory]
+    H --> I[JavaScript Wrapper]
     A -->|Generate Policy| J[policies/ Directory]
-    J --> I[policy.cedar]
+    J --> K[<package>_policy.cedar]
 ```
 
 ## 2. Action Flow (Runtime)
@@ -52,7 +58,7 @@ There are no WASI 0.2 polyfills running under the hood. The build steps use the 
 
 ## 4. ESM Initialization Order & WASI Sandboxing
 
-To evaluate security policies, the system injects the `policy.cedar` file into the WASI guest as an environment variable (`BURR_POLICY_CONTENT`).
+To evaluate security policies, the system injects the policy file for the specific module into the WASI guest as an environment variable (`BURR_POLICY_CONTENT`).
 
 This injection is highly sensitive to the ECMAScript Module (ESM) execution order in Node.js, as imported modules are evaluated before the importing file executes its top-level code. If the entry point simply uses:
 ```javascript

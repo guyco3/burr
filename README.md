@@ -37,7 +37,7 @@ You can then install any WebAssembly Component from an OCI registry (like GHCR) 
 burr install ghcr.io/guyco3/parser:0.1.0
 ```
 
-This generates a hidden `.burr` directory containing a JavaScript wrapper and creates a default-deny security policy in a visible `policies/` directory. You can then import it natively in your Node.js app:
+This command updates your `burr.json` manifest, generates a hidden `.burr` directory containing a JavaScript wrapper, and creates a default-deny security policy in a visible `policies/` directory. You can then import it natively in your Node.js app:
 ```javascript
 import { parser } from './.burr/guyco3_parser/index.js';
 
@@ -52,10 +52,17 @@ await parser.parseUppercase("hello world");
 
 When you install a component with `burr`, it performs the following:
 
-1. **Pull:** Downloads the requested WebAssembly component using `wkg`.
-2. **Map:** Transpiles the component with `jco`, rerouting its WASI imports (filesystem, network) into our secure Rust proxy (the "Virtualizer") instead of directly to the host.
-3. **Generate:** Creates a hidden `.burr/<package>` directory for the transpiled JavaScript and WASM, and creates an empty `policy.cedar` file in a root `policies/` directory for you to configure and commit to version control.
-4. **Authorize:** At runtime, the Virtualizer intercepts all guest actions and evaluates them against your policy. Access is blocked unless explicitly permitted.
+1. **Track:** Updates the `burr.json` manifest to track the installed dependency.
+2. **Pull:** Downloads the requested WebAssembly component using `wkg`.
+3. **Map:** Transpiles the component with `jco`, rerouting its WASI imports (filesystem, network) into our secure Rust proxy (the "Virtualizer") instead of directly to the host.
+4. **Generate:** Creates a hidden `.burr/<package>` directory for the transpiled JavaScript and WASM, and creates an empty `<package>_policy.cedar` file in a root `policies/` directory for you to configure and commit to version control.
+5. **Authorize:** At runtime, the Virtualizer intercepts all guest actions and evaluates them against your policy. Access is blocked unless explicitly permitted.
+
+If you share your project, others can simply run:
+```bash
+burr install
+```
+This reads the `burr.json` file and installs all dependencies automatically.
 
 If a malicious component tries to access resources it hasn't been explicitly authorized for (such as reading `/etc/passwd`), `burr` intercepts and blocks it:
 ```json
